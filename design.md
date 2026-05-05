@@ -3,7 +3,7 @@
 
 #### TideParts
 
-![GCode Example](https://2026.team4414.com/binder_assets/WebAppPhotos/Tide Parts.webp)
+![GCode Example](https://2026.team4414.com/binder_assets/WebAppPhotos/Tide%20Parts.webp)
 
 #### 6328's OnShape App
 
