@@ -123,6 +123,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let res = localStorage.getItem("ffst-login");
     if(res) {
-        login(res);
+        login(JSON.parse(res));
     }
 });
