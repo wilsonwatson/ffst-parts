@@ -1,4 +1,21 @@
 
 body {
     background-color: #181818;
+    color: white;
+}
+
+#login-page {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+#auth-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.hidden {
+    display: none;
 }

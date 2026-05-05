@@ -33,6 +33,38 @@ function getOnshapeIdsFromUrl(currentURL) {
 
 const server = new URL(window.location.href).searchParams.get('server');
 
+let popupWindow = null;
+let jwt = null;
+let token = null;
+
+window.addEventListener("message", function(e) {
+    console.log("Post message received in application extension.");
+    console.log("e.origin = " + e.origin);
+
+    // Verify the origin matches the server iframe src query parameter
+    if (server === e.origin) {
+        console.log("Message safe and can be handled as it is from origin '"
+                    + e.origin +
+                    "', which matches server query parameter '"
+                    + server + "'.");
+        if (e.data && e.data.messageName) {
+            console.log("Message name = '" + e.data.messageName + "'");
+        } else {
+            console.log("Message name not found. Ignoring message.");
+        }
+        console.log(e.data);
+    } else {
+    console.log("Message NOT safe and should be ignored.");
+    }
+}, false);
+
+document.getElementById("login").addEventListener("click", async () => {
+    let resp = await fetch("https://api.frc5572.org/login");
+    let res = await resp.json();
+    jwt = res['jwt'];
+    popupWindow = window.open(res['auth_url'], "Login", "resizable");
+});
+
 /**
  * Initializes the Hello World application once the DOM is fully loaded.
  *
@@ -50,27 +82,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Get reference to the parsed IDs.
     const { documentId, workspaceId, elementId } = getOnshapeIdsFromUrl(window.location.href);
     console.log('Onshape IDs:', { documentId, workspaceId, elementId });
-
-    window.addEventListener("message", function(e) {
-        console.log("Post message received in application extension.");
-        console.log("e.origin = " + e.origin);
-
-        // Verify the origin matches the server iframe src query parameter
-        if (server === e.origin) {
-            console.log("Message safe and can be handled as it is from origin '"
-                        + e.origin +
-                        "', which matches server query parameter '"
-                        + server + "'.");
-            if (e.data && e.data.messageName) {
-                console.log("Message name = '" + e.data.messageName + "'");
-            } else {
-                console.log("Message name not found. Ignoring message.");
-            }
-            console.log(e.data);
-        } else {
-        console.log("Message NOT safe and should be ignored.");
-        }
-    }, false);
 
     // Send applicationInit message
     const appInitMessage = {
