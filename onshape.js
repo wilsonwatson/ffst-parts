@@ -48,10 +48,7 @@ let jwt = null;
 let token = null;
 
 window.addEventListener("message", async function(e) {
-    console.log("Post message received in application extension.");
-    console.log("e.origin = " + e.origin);
-
-    if(e.origin == "https://api.frc5572.org") {
+    if(e.origin === "https://api.frc5572.org") {
         let data = JSON.parse(e.data);
         if(popupWindow) {
             popupWindow.close();
@@ -71,19 +68,13 @@ window.addEventListener("message", async function(e) {
         let res = await resp.json();
         localStorage.setItem("ffst-login", JSON.stringify(res));
         login(res);
-    } else if (server === e.origin) {
-        console.log("Message safe and can be handled as it is from origin '"
-                    + e.origin +
-                    "', which matches server query parameter '"
-                    + server + "'.");
+    } else if (e.origin === server) {
         if (e.data && e.data.messageName) {
             console.log("Message name = '" + e.data.messageName + "'");
         } else {
             console.log("Message name not found. Ignoring message.");
         }
         console.log(e.data);
-    } else {
-        console.log("Message NOT safe and should be ignored.");
     }
 }, false);
 
