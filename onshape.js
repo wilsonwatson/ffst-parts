@@ -31,18 +31,47 @@ function getOnshapeIdsFromUrl(currentURL) {
     throw new Error('Missing Onshape IDs in URL. Provide documentId, workspaceId, and elementId as query parameters or use an Onshape document URL.');
 }
 
+function login(res) {
+    token = res.token;
+    console.log(res.user_info);
+    document.querySelectorAll(".user-img").forEach((e) => {
+        
+    });
+    document.getElementById("login-page").classList.add("hidden");
+    document.getElementById("auth-content").classList.remove("hidden");
+}
+
 const server = new URL(window.location.href).searchParams.get('server');
 
 let popupWindow = null;
 let jwt = null;
 let token = null;
 
-window.addEventListener("message", function(e) {
+window.addEventListener("message", async function(e) {
     console.log("Post message received in application extension.");
     console.log("e.origin = " + e.origin);
 
-    // Verify the origin matches the server iframe src query parameter
-    if (server === e.origin) {
+    if(e.origin == "https://api.frc5572.org") {
+        let data = JSON.parse(e.data);
+        if(popupWindow) {
+            popupWindow.close();
+        }
+
+        let resp = await fetch("https://api.frc5572.org/login_complete", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                state: data.state,
+                code: data.code,
+                jwt: jwt
+            })
+        });
+        let res = await resp.json();
+        localStorage.setItem("ffst-login", JSON.stringify(res));
+        login(res);
+    } else if (server === e.origin) {
         console.log("Message safe and can be handled as it is from origin '"
                     + e.origin +
                     "', which matches server query parameter '"
@@ -54,7 +83,7 @@ window.addEventListener("message", function(e) {
         }
         console.log(e.data);
     } else {
-    console.log("Message NOT safe and should be ignored.");
+        console.log("Message NOT safe and should be ignored.");
     }
 }, false);
 
@@ -91,4 +120,9 @@ document.addEventListener('DOMContentLoaded', function() {
         jwt = res['jwt'];
         popupWindow = window.open(res['auth_url'], "Login", "resizable");
     });
+
+    let res = localStorage.getItem("ffst-login");
+    if(res) {
+        login(res);
+    }
 });
