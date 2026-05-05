@@ -31,6 +31,8 @@ function getOnshapeIdsFromUrl(currentURL) {
     throw new Error('Missing Onshape IDs in URL. Provide documentId, workspaceId, and elementId as query parameters or use an Onshape document URL.');
 }
 
+const server = new URL(window.location.href).searchParams.get('server');
+
 /**
  * Initializes the Hello World application once the DOM is fully loaded.
  *
