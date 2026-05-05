@@ -35,7 +35,7 @@ function login(res) {
     token = res.token;
     console.log(res.user_info);
     document.querySelectorAll(".user-img").forEach((e) => {
-        
+        e.src = res.user_info.picture;
     });
     document.getElementById("login-page").classList.add("hidden");
     document.getElementById("auth-content").classList.remove("hidden");
