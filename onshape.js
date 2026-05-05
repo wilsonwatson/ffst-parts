@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 console.log("Message name not found. Ignoring message.");
             }
-            console.log(data);
+            console.log(e.data);
         } else {
         console.log("Message NOT safe and should be ignored.");
         }
