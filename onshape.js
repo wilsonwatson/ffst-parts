@@ -58,13 +58,6 @@ window.addEventListener("message", function(e) {
     }
 }, false);
 
-document.getElementById("login").addEventListener("click", async () => {
-    let resp = await fetch("https://api.frc5572.org/login");
-    let res = await resp.json();
-    jwt = res['jwt'];
-    popupWindow = window.open(res['auth_url'], "Login", "resizable");
-});
-
 /**
  * Initializes the Hello World application once the DOM is fully loaded.
  *
@@ -91,4 +84,11 @@ document.addEventListener('DOMContentLoaded', function() {
         messageName: 'applicationInit'
     };
     window.parent.postMessage(appInitMessage, '*');
+
+    document.getElementById("login").addEventListener("click", async () => {
+        let resp = await fetch("https://api.frc5572.org/login");
+        let res = await resp.json();
+        jwt = res['jwt'];
+        popupWindow = window.open(res['auth_url'], "Login", "resizable");
+    });
 });
