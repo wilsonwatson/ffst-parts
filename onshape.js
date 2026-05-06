@@ -207,7 +207,8 @@ function setup_selector(list, callback) {
     }
 }
 
-let submit_button = document.getElementById("submit");
+let submit_button;
+
 let form = {
     project: "",
     manufacturing_type: "",
@@ -227,6 +228,7 @@ async function fill_projects() {
 }
 
 async function setup_form() {
+    submit_button = document.getElementById("submit");
     await fill_projects();
     setup_selector(document.getElementById("item_type"), (i) => {
         form.manufacturing_type = i;
