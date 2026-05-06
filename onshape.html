@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,21 +8,52 @@
     <link rel="stylesheet" href="style.css">
     <script src="onshape.js"></script>
 </head>
+
 <body>
-    <div id="login-page">
+    <div id="login-page" class="hidden">
         <button id="login">Login</button>
     </div>
-    <div id="auth-content" class="hidden">
+    <div id="auth-content">
         <div id="header">
-            <img id="logo" src="">
-            <img class="user-img" src="">
+            <img id="logo" src="icon.png">
+            <span>FRC 5572 Mfg</span>
+            <img class="user-img" src="icon.png">
         </div>
         <div id="body">
-            Logged in
-        </div>
-        <div id="footer">
-
+            <div>
+                <h3>Project</h3>
+                <ul id="projects" class="selector">
+                    <li>Proj1</li>
+                    <li>Proj2</li>
+                    <li>Proj3</li>
+                </ul>
+            </div>
+            <div>
+                <h3>Manufacturing Type</h3>
+                <ul id="item_type" class="selector">
+                    <li>Tube Stock</li>
+                    <li>Shaft Stock</li>
+                    <li>CNC</li>
+                    <li>3D Print</li>
+                </ul>
+            </div>
+            <div>
+                <h3>Part</h3>
+                <div id="part-not-selected">
+                    No Part Selected.
+                </div>
+                <div id="part-selected" class="hidden">
+                    Using Part <span id="part-name">?</span>.
+                </div>
+                <div id="too-many-parts-selected" class="hidden">
+                    Too Many Parts Selected. Select only 1 Part.
+                </div>
+            </div>
+            <div>
+                <button id="submit" class="unavailable">Submit</button>
+            </div>
         </div>
     </div>
 </body>
+
 </html>

@@ -59,6 +59,7 @@ async function login(res) {
         e.src = res.user_info.picture;
     });
     await update_assembly_info(false);
+    await setup_form();
     document.getElementById("login-page").classList.add("hidden");
     document.getElementById("auth-content").classList.remove("hidden");
 }
@@ -107,15 +108,37 @@ window.addEventListener("message", async function(e) {
         if (e.data && e.data.messageName) {
             console.log(e.data);
             if (e.data.messageName === "SELECTION") {
+                let selections = [];
                 for(let i = 0; i < e.data.selections.length; i++) {
                     let selection = e.data.selections[i];
                     let occurrence = selection['occurrencePath'][0];
                     let res = findPartPath(occurrence);
                     if(!res) {
-                        await update_assembly_info(false);
+                        await update_assembly_info(true);
                         res = findPartPath(occurrence);
                     }
-                    console.log(res);
+                    if(res) {
+                        selections.push(res);
+                    }
+                }
+                let zero = this.document.getElementById("part-not-selected");
+                let one = this.document.getElementById("part-selected");
+                let more = this.document.getElementById("too-many-parts-selected");
+                let part_name = this.document.getElementById("part-name");
+                if(selections.length == 0) {
+                    zero.classList.remove("hidden");
+                    one.classList.add("hidden");
+                    more.classList.add("hidden");
+                } else if(selections.length == 1) {
+                    zero.classList.add("hidden");
+                    one.classList.remove("hidden");
+                    more.classList.add("hidden");
+                    part_name.innerText = selections[0].name;
+                    set_part(selections[0]);
+                } else {
+                    zero.classList.add("hidden");
+                    one.classList.add("hidden");
+                    more.classList.remove("hidden");
                 }
             }
         }
@@ -161,3 +184,67 @@ document.addEventListener('DOMContentLoaded', async function() {
         await login(JSON.parse(res));
     }
 });
+
+function setup_selector(list, callback) {
+    for(let i = 0; i < list.children.length; i++) {
+        let item = list.children[i];
+        if(i == 0) {
+            item.classList.add("selected");
+            callback(item.innerText);
+        }
+
+        item.addEventListener("click", () => {
+            for(let j = 0; j < list.children.length; j++) {
+                let item2 = list.children[j];
+                if(i == j) {
+                    item2.classList.add("selected");
+                } else {
+                    item2.classList.remove("selected");
+                }
+            }
+            callback(item.innerText);
+        });
+    }
+}
+
+let submit_button = document.getElementById("submit");
+let form = {
+    project: "",
+    manufacturing_type: "",
+    part: null,
+};
+
+
+
+async function fill_projects() {
+    let project_list = document.getElementById("projects");
+
+    // TODO get project list from api
+
+    setup_selector(project_list, (i) => {
+        form.project = i;
+    });
+}
+
+async function setup_form() {
+    await fill_projects();
+    setup_selector(document.getElementById("item_type"), (i) => {
+        form.manufacturing_type = i;
+    });
+    submit_button.addEventListener("click", () => {
+        if(form.part) {
+            // TODO submit new issue
+            console.log(form);
+        }
+    });
+}
+
+function set_part(part) {
+    if(part) {
+        submit_button.classList.remove("unavailable");
+        form.part = part;
+    } else {
+        submit_button.classList.add("unavailable");
+        form.part = null;
+    }
+}
