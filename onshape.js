@@ -129,6 +129,7 @@ window.addEventListener("message", async function(e) {
                     zero.classList.remove("hidden");
                     one.classList.add("hidden");
                     more.classList.add("hidden");
+                    set_part(null);
                 } else if(selections.length == 1) {
                     zero.classList.add("hidden");
                     one.classList.remove("hidden");
@@ -139,6 +140,7 @@ window.addEventListener("message", async function(e) {
                     zero.classList.add("hidden");
                     one.classList.add("hidden");
                     more.classList.remove("hidden");
+                    set_part(null);
                 }
             }
         }
