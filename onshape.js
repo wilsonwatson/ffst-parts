@@ -31,12 +31,34 @@ function getOnshapeIdsFromUrl(currentURL) {
     throw new Error('Missing Onshape IDs in URL. Provide documentId, workspaceId, and elementId as query parameters or use an Onshape document URL.');
 }
 
-function login(res) {
+let assembly_info = null;
+
+async function update_assembly_info() {
+    const { documentId, workspaceId, elementId } = getOnshapeIdsFromUrl(window.location.href);
+    let resp = await fetch("https://api.frc5572.org/onshape/assembly_info", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token
+        },
+        body: JSON.stringify({
+            document: documentId,
+            workspace: workspaceId,
+            element: elementId,
+            force_reupdate_cache: false,
+        })
+    });
+    assembly_info = await resp.json();
+    console.log(assembly_info);
+}
+
+async function login(res) {
     token = res.token;
     console.log(res.user_info);
     document.querySelectorAll(".user-img").forEach((e) => {
         e.src = res.user_info.picture;
     });
+    await update_assembly_info();
     document.getElementById("login-page").classList.add("hidden");
     document.getElementById("auth-content").classList.remove("hidden");
 }
@@ -67,7 +89,7 @@ window.addEventListener("message", async function(e) {
         });
         let res = await resp.json();
         localStorage.setItem("ffst-login", JSON.stringify(res));
-        login(res);
+        await login(res);
     } else if (e.origin === server) {
         if (e.data && e.data.messageName) {
             console.log("Message name = '" + e.data.messageName + "'");
@@ -91,7 +113,7 @@ window.addEventListener("message", async function(e) {
  *
  * @listens Document#DOMContentLoaded
  */
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Get reference to the parsed IDs.
     const { documentId, workspaceId, elementId } = getOnshapeIdsFromUrl(window.location.href);
     console.log('Onshape IDs:', { documentId, workspaceId, elementId });
@@ -114,6 +136,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let res = localStorage.getItem("ffst-login");
     if(res) {
-        login(JSON.parse(res));
+        await login(JSON.parse(res));
     }
 });
