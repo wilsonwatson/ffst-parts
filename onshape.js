@@ -33,7 +33,7 @@ function getOnshapeIdsFromUrl(currentURL) {
 
 let assembly_info = null;
 
-async function update_assembly_info() {
+async function update_assembly_info(force_reupdate_cache) {
     const { documentId, workspaceId, elementId } = getOnshapeIdsFromUrl(window.location.href);
     let resp = await fetch("https://api.frc5572.org/onshape/assembly_info", {
         method: "POST",
@@ -45,7 +45,7 @@ async function update_assembly_info() {
             document: documentId,
             workspace: workspaceId,
             element: elementId,
-            force_reupdate_cache: false,
+            force_reupdate_cache: force_reupdate_cache,
         })
     });
     assembly_info = await resp.json();
@@ -58,9 +58,22 @@ async function login(res) {
     document.querySelectorAll(".user-img").forEach((e) => {
         e.src = res.user_info.picture;
     });
-    await update_assembly_info();
+    await update_assembly_info(false);
     document.getElementById("login-page").classList.add("hidden");
     document.getElementById("auth-content").classList.remove("hidden");
+}
+
+function findPartPath(occurrence) {
+    if(!assembly_info) {
+        return null;
+    }
+    for(let i = 0; i < assembly_info.length; i++) {
+        if(assembly_info[i].id === occurrence) {
+            return assembly_info[i];
+        }
+    }
+
+    return null;
 }
 
 const server = new URL(window.location.href).searchParams.get('server');
@@ -92,11 +105,20 @@ window.addEventListener("message", async function(e) {
         await login(res);
     } else if (e.origin === server) {
         if (e.data && e.data.messageName) {
-            console.log("Message name = '" + e.data.messageName + "'");
-        } else {
-            console.log("Message name not found. Ignoring message.");
+            console.log(e.data);
+            if (e.data.messageName === "SELECTION") {
+                for(let i = 0; i < e.data.selections.length; i++) {
+                    let selection = e.data.selections[i];
+                    let occurrence = selection['occurrencePath'][0];
+                    let res = findPartPath(occurrence);
+                    if(!res) {
+                        await update_assembly_info(false);
+                        res = findPartPath(occurrence);
+                    }
+                    console.log(res);
+                }
+            }
         }
-        console.log(e.data);
     }
 }, false);
 
