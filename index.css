@@ -1,0 +1,23 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wdth,wght@0,75,100..900;1,75,100..900&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    margin-block: 0;
+    padding-inline: 0;
+}
+
+:root {
+    font-family: "Roboto", sans-serif;
+    font-optical-sizing: auto;
+    font-style: normal;
+    font-variation-settings:
+        "wdth" 75;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #181818;
+    color: white;
+}
