@@ -237,6 +237,7 @@ async function setup_form() {
     });
     submit_button.addEventListener("click", async () => {
         if(form.part) {
+            console.log("Submitting", form);
             let resp = await fetch("https://api.frc5572.org/onshape/new_issue", {
                 method: "POST",
                 headers: {
