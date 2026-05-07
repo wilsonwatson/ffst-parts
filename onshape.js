@@ -235,10 +235,17 @@ async function setup_form() {
     setup_selector(document.getElementById("item_type"), (i) => {
         form.manufacturing_type = i;
     });
-    submit_button.addEventListener("click", () => {
+    submit_button.addEventListener("click", async () => {
         if(form.part) {
-            // TODO submit new issue
-            console.log(form);
+            let resp = await fetch("https://api.frc5572.org/onshape/new_issue", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: "Bearer " + token
+                },
+                body: JSON.stringify(form)
+            });
+            // TODO check resp.status and give feedback
         }
     });
 }
