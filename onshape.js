@@ -56,7 +56,7 @@ async function login(res) {
     token = res.token;
     console.log(res.user_info);
     document.querySelectorAll(".user-img").forEach((e) => {
-        e.src = res.user_info.picture;
+        e.src = res.user_info.data.picture;
     });
     await update_assembly_info(false);
     await setup_form();
