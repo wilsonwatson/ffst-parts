@@ -61,9 +61,9 @@ async function resolveSelection(occurrencePath, workspaceMicroversionId, documen
 
         document.getElementById('part-name').textContent = part.part_name;
         document.getElementById('part-link').href =
-            `https://cad.onshape.com/documents/${part.onshape.document_id}` +
-            `/w/${part.onshape.workspace_id}/m/${part.onshape.microversion_id}` +
-            `/e/${part.onshape.element_id}`;
+            `https://cad.onshape.com/documents/${part.document_id}` +
+            `/w/${part.workspace_id}/m/${part.microversion_id}` +
+            `/e/${part.element_id}`;
 
         const materialEl = document.getElementById('material');
         if (part.material && !materialEl.dataset.userEdited) {
@@ -188,7 +188,13 @@ async function submit() {
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({
                 part_name: selectedPart.part_name,
-                onshape: selectedPart.onshape,
+                onshape: {
+                    document_id: selectedPart.document_id,
+                    workspace_id: selectedPart.workspace_id,
+                    microversion_id: selectedPart.microversion_id,
+                    element_id: selectedPart.element_id,
+                    part_id: selectedPart.part_id,
+                },
                 manufacturing_type: form.manufacturing_type,
                 priority: form.priority,
                 quantity: parseInt(document.getElementById('quantity').value, 10),
