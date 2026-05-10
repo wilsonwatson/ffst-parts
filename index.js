@@ -134,6 +134,7 @@ function renderBoard() {
   document.querySelectorAll('.issue-card').forEach(el => {
     el.addEventListener('click', () => openPanel(el.dataset.id));
   });
+
 }
 
 function renderCard(issue) {
@@ -145,16 +146,21 @@ function renderCard(issue) {
 
   return `
     <div class="issue-card" data-id="${issue.id}">
-      <div class="card-title">${esc(issue.part_name)}</div>
-      <div class="card-meta">
-        <span class="badge badge-type">${TYPE_LABEL[issue.manufacturing_type] ?? issue.manufacturing_type}</span>
-        <span class="badge badge-${issue.priority}">${issue.priority}</span>
-      </div>
-      <div class="card-footer">
-        <div class="assignee-chips">${assigneeHtml}${extraAssignees}</div>
-        <span class="card-submitter" title="Submitted by ${esc(issue.submitted_by)}">${esc(userName(issue.submitted_by))}</span>
-        ${issue.comments.length > 0 ? `<span>💬 ${issue.comments.length}</span>` : ''}
-        <span>&times;${issue.quantity}</span>
+      ${issue.thumbnail
+        ? `<div class="card-thumb" style="background-image:url('data:image/png;base64,${issue.thumbnail}')"></div>`
+        : ''}
+      <div class="card-body">
+        <div class="card-title">${esc(issue.part_name)}</div>
+        <div class="card-meta">
+          <span class="badge badge-type">${TYPE_LABEL[issue.manufacturing_type] ?? issue.manufacturing_type}</span>
+          <span class="badge badge-${issue.priority}">${issue.priority}</span>
+        </div>
+        <div class="card-footer">
+          <div class="assignee-chips">${assigneeHtml}${extraAssignees}</div>
+          <span class="card-submitter" title="Submitted by ${esc(issue.submitted_by)}">${esc(userName(issue.submitted_by))}</span>
+          ${issue.comments.length > 0 ? `<span>💬 ${issue.comments.length}</span>` : ''}
+          <span>&times;${issue.quantity}</span>
+        </div>
       </div>
     </div>
   `;
