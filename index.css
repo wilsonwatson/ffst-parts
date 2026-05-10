@@ -172,6 +172,37 @@ button.btn {
 .add-comment textarea:focus { outline: none; border-color: var(--accent); }
 .add-comment-footer { display: flex; justify-content: flex-end; margin-top: 8px; }
 
+/* ---- Card submitter ---- */
+.card-submitter { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+/* ---- Multi-select ---- */
+.ms-wrap { position: relative; }
+.ms-trigger {
+  width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 4px 8px; font: inherit; font-size: 13px;
+  cursor: pointer; color: var(--text);
+}
+.ms-trigger:hover { border-color: #b3bac5; }
+.ms-dropdown {
+  position: absolute; z-index: 300; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); max-height: 220px; display: flex; flex-direction: column;
+}
+.ms-search {
+  padding: 6px 10px; border: none; border-bottom: 1px solid var(--border);
+  font: inherit; font-size: 13px; outline: none; flex-shrink: 0;
+}
+.ms-list { overflow-y: auto; flex: 1; }
+.ms-item {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+  cursor: pointer; font-size: 13px;
+}
+.ms-item:hover { background: var(--bg); }
+.ms-check { width: 14px; color: var(--accent); font-weight: 700; visibility: hidden; flex-shrink: 0; }
+.ms-selected .ms-check { visibility: visible; }
+.ms-name { flex: 1; }
+.ms-email-hint { font-size: 11px; color: var(--muted); }
+
 /* ---- Files ---- */
 .file-row { display: flex; align-items: center; gap: 10px; padding: 6px 0;
             border-top: 1px solid var(--border); }

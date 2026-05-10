@@ -6,6 +6,7 @@ let jwt   = null;
 let popupWindow = null;
 
 let allIssues   = [];
+let allUsers    = [];   // [{email, name}]
 let activeType  = '';   // '' | '3d_print' | 'cnc' | 'manual_cut'
 let openIssueId = null;
 
@@ -67,7 +68,19 @@ async function login(res) {
   document.getElementById('user-name').textContent = res.user_info.data.name;
   document.getElementById('login-page').classList.add('hidden');
   document.getElementById('main').classList.remove('hidden');
-  await loadIssues();
+  await Promise.all([loadIssues(), loadUsers()]);
+}
+
+async function loadUsers() {
+  try {
+    const resp = await fetch(`${API}/users`, { headers: { Authorization: `Bearer ${token}` } });
+    if (resp.ok) allUsers = await resp.json();
+  } catch {}
+}
+
+function userName(email) {
+  const u = allUsers.find(u => u.email === email);
+  return u ? u.name : email.split('@')[0];
 }
 
 // ---- Data ----------------------------------------------------------------
@@ -131,6 +144,7 @@ function renderCard(issue) {
       </div>
       <div class="card-footer">
         <div class="assignee-chips">${assigneeHtml}${extraAssignees}</div>
+        <span class="card-submitter" title="Submitted by ${esc(issue.submitted_by)}">${esc(userName(issue.submitted_by))}</span>
         ${issue.comments.length > 0 ? `<span>💬 ${issue.comments.length}</span>` : ''}
         <span>&times;${issue.quantity}</span>
       </div>
@@ -192,13 +206,15 @@ function renderPanel(issue) {
       <dt class="meta-label">Priority</dt>
       <dd class="meta-value"><span class="badge badge-${issue.priority}">${issue.priority}</span></dd>
       <dt class="meta-label">Assignees</dt>
-      <dd class="meta-value">${issue.assignees.length ? esc(issue.assignees.join(', ')) : '<em>None</em>'}</dd>
+      <dd class="meta-value" id="assignees-cell"></dd>
+      <dt class="meta-label">Reviewers</dt>
+      <dd class="meta-value" id="reviewers-cell"></dd>
+      <dt class="meta-label">Submitted by</dt>
+      <dd class="meta-value">${esc(userName(issue.submitted_by))}</dd>
       <dt class="meta-label">Quantity</dt>
       <dd class="meta-value">${issue.quantity}</dd>
       <dt class="meta-label">Material</dt>
       <dd class="meta-value">${esc(issue.material) || '<em>-</em>'}</dd>
-      <dt class="meta-label">Submitted by</dt>
-      <dd class="meta-value">${esc(issue.submitted_by)}</dd>
     </dl>
 
     <div class="actions">
@@ -252,6 +268,14 @@ function renderPanel(issue) {
   document.getElementById('file-upload-btn').addEventListener('click', () => uploadFiles(issue.id));
   document.getElementById('comment-submit').addEventListener('click', () => submitComment(issue.id));
 
+  // Multi-select dropdowns
+  buildMultiSelect('assignees-cell', allUsers, issue.assignees, sel =>
+    patchIssueLocal(issue.id, { assignees: sel })
+  );
+  buildMultiSelect('reviewers-cell', allUsers, issue.reviewers, sel =>
+    patchIssueLocal(issue.id, { reviewers: sel })
+  );
+
   // Redesign chain navigation
   document.querySelectorAll('[data-id]').forEach(el => {
     el.addEventListener('click', e => { e.preventDefault(); openPanel(el.dataset.id); });
@@ -259,6 +283,103 @@ function renderPanel(issue) {
 }
 
 // ---- Mutations -----------------------------------------------------------
+
+// Optimistic local patch — updates memory + board immediately, syncs in background.
+function patchIssueLocal(id, update) {
+  const issue = allIssues.find(i => i.id === id);
+  if (issue) Object.assign(issue, update);
+  renderBoard();
+  api('PATCH', `/parts/${id}`, update);
+}
+
+// ---- Multi-select dropdown -----------------------------------------------
+
+function buildMultiSelect(cellId, users, initialSelected, onChange) {
+  const cell = document.getElementById(cellId);
+  if (!cell) return;
+
+  let selected = new Set(initialSelected);
+
+  function triggerLabel() {
+    if (selected.size === 0) return '<em>None</em>';
+    return [...selected].map(e => esc(userName(e))).join(', ');
+  }
+
+  function render(filter) {
+    const q = (filter || '').toLowerCase();
+    const filtered = users.filter(u =>
+      u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+    );
+    return filtered.map(u => `
+      <div class="ms-item${selected.has(u.email) ? ' ms-selected' : ''}" data-email="${esc(u.email)}">
+        <span class="ms-check">✓</span>
+        <span class="ms-name">${esc(u.name)}</span>
+        <span class="ms-email-hint">${esc(u.email)}</span>
+      </div>
+    `).join('');
+  }
+
+  function mount() {
+    cell.innerHTML = `
+      <div class="ms-wrap">
+        <button type="button" class="ms-trigger">${triggerLabel()}</button>
+        <div class="ms-dropdown hidden">
+          <input class="ms-search" type="text" placeholder="Filter users…" autocomplete="off">
+          <div class="ms-list">${render('')}</div>
+        </div>
+      </div>`;
+
+    const trigger  = cell.querySelector('.ms-trigger');
+    const dropdown = cell.querySelector('.ms-dropdown');
+    const search   = cell.querySelector('.ms-search');
+    const list     = cell.querySelector('.ms-list');
+
+    function wireItems() {
+      list.querySelectorAll('.ms-item').forEach(el => {
+        el.addEventListener('mousedown', e => {
+          e.preventDefault(); // keep focus on search input
+          const email = el.dataset.email;
+          if (selected.has(email)) selected.delete(email);
+          else selected.add(email);
+          trigger.innerHTML = triggerLabel();
+          list.innerHTML = render(search.value);
+          wireItems();
+          onChange([...selected]);
+        });
+      });
+    }
+
+    function close() { dropdown.classList.add('hidden'); }
+
+    function open() {
+      dropdown.classList.remove('hidden');
+      search.value = '';
+      list.innerHTML = render('');
+      search.focus();
+      wireItems();
+
+      function onDocClick(e) {
+        if (!cell.contains(e.target)) {
+          close();
+          document.removeEventListener('click', onDocClick);
+        }
+      }
+      document.addEventListener('click', onDocClick);
+    }
+
+    trigger.addEventListener('click', e => {
+      e.stopPropagation();
+      dropdown.classList.contains('hidden') ? open() : close();
+    });
+    search.addEventListener('input', () => {
+      list.innerHTML = render(search.value);
+      wireItems();
+    });
+    dropdown.addEventListener('click', e => e.stopPropagation());
+  }
+
+  mount();
+}
 
 async function advanceStage(issue, next) {
   const btn = document.getElementById('advance-btn');
