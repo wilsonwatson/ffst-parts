@@ -1,59 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <link rel="stylesheet" href="onshape.css">
-    <script src="onshape.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submit Part</title>
+  <link rel="stylesheet" href="onshape.css">
 </head>
-
 <body>
-    <div id="login-page">
-        <button id="login">Login</button>
-    </div>
-    <div id="auth-content" class="hidden">
-        <div id="header">
-            <img id="logo" src="icon.png">
-            <span>FRC 5572 Mfg</span>
-            <img class="user-img" src="icon.png">
-        </div>
-        <div id="body">
-            <div>
-                <h3>Project</h3>
-                <ul id="projects" class="selector">
-                    <li>Proj1</li>
-                    <li>Proj2</li>
-                    <li>Proj3</li>
-                </ul>
-            </div>
-            <div>
-                <h3>Manufacturing Type</h3>
-                <ul id="item_type" class="selector">
-                    <li>Tube Stock</li>
-                    <li>Shaft Stock</li>
-                    <li>CNC</li>
-                    <li>3D Print</li>
-                </ul>
-            </div>
-            <div>
-                <h3>Part</h3>
-                <div id="part-not-selected">
-                    No Part Selected.
-                </div>
-                <div id="part-selected" class="hidden">
-                    Using Part <span id="part-name">?</span>.
-                </div>
-                <div id="too-many-parts-selected" class="hidden">
-                    Too Many Parts Selected. Select only 1 Part.
-                </div>
-            </div>
-            <div>
-                <button id="submit" class="unavailable">Submit</button>
-            </div>
-        </div>
-    </div>
-</body>
 
+  <div id="login-page">
+    <div class="brand">Parts Tracker</div>
+    <p>Sign in to submit parts for manufacturing.</p>
+    <button id="login-btn">Sign in with Google</button>
+  </div>
+
+  <div id="main" class="hidden">
+    <header>
+      <img id="user-avatar" class="avatar" src="" alt="" />
+      <span id="user-name"></span>
+    </header>
+
+    <section id="selection-state">
+      <div id="state-none" class="state-panel">
+        <p>Select a part from the assembly.</p>
+      </div>
+      <div id="state-loading" class="state-panel hidden">
+        <p>Resolving part&hellip;</p>
+      </div>
+      <div id="state-one" class="state-panel hidden">
+        <div id="part-name" class="part-name"></div>
+        <a id="part-link" class="part-link" href="#" target="_blank">Open in OnShape ↗</a>
+      </div>
+      <div id="state-multi" class="state-panel hidden">
+        <p>Select only one part at a time.</p>
+      </div>
+      <div id="state-error" class="state-panel hidden">
+        <p>Could not resolve part - try reselecting.</p>
+      </div>
+    </section>
+
+    <section id="form-area">
+      <div class="field">
+        <label>Type</label>
+        <ul class="selector" id="mfg-type">
+          <li data-value="3d_print">3D Print</li>
+          <li data-value="cnc">CNC</li>
+          <li data-value="manual_cut">Manual Cut</li>
+        </ul>
+      </div>
+
+      <div class="field">
+        <label>Priority</label>
+        <ul class="selector" id="priority">
+          <li data-value="critical" class="critical">Critical</li>
+          <li data-value="high" class="high">High</li>
+          <li data-value="medium" class="medium">Medium</li>
+          <li data-value="low" class="low">Low</li>
+        </ul>
+      </div>
+
+      <div class="field row">
+        <label for="quantity">Quantity</label>
+        <input type="number" id="quantity" min="1" value="1" />
+      </div>
+
+      <div class="field">
+        <label for="material">Material</label>
+        <input type="text" id="material" placeholder="Loading from OnShape…" />
+      </div>
+
+      <div class="field">
+        <label for="notes">Notes</label>
+        <textarea id="notes" rows="3" placeholder="Tolerances, special instructions…"></textarea>
+      </div>
+
+      <div class="field" id="redesign-field">
+        <label for="redesign-pred">Replaces (redesign)</label>
+        <select id="redesign-pred">
+          <option value="">- None -</option>
+        </select>
+      </div>
+
+      <div id="submit-error" class="error hidden"></div>
+      <button id="submit-btn" disabled>Submit Part</button>
+    </section>
+  </div>
+
+  <script src="onshape.js"></script>
+</body>
 </html>

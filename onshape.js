@@ -1,262 +1,258 @@
-/**
- * Extracts Onshape document, workspace, and element IDs from a given URL.
- * Supports both query parameter format and Onshape path-based URL format.
- *
- * @param {string} currentURL - The full URL string to parse.
- * @returns {{ documentId: string, workspaceId: string, elementId: string }} An object containing the three Onshape IDs.
- * @throws {Error} If the required IDs cannot be found in the URL.
- */
-function getOnshapeIdsFromUrl(currentURL) {
-    const url = new URL(currentURL);
-    const params = url.searchParams;
+const params = new URL(window.location.href).searchParams;
+const API    = params.get('api') || 'https://api.frc5572.org';
+const SERVER = params.get('server'); // OnShape origin, e.g. https://cad.onshape.com
 
-    const documentId = params.get('documentId');
-    const workspaceId = params.get('workspaceId');
-    const elementId = params.get('elementId');
+let token = null;
+let jwt   = null;
+let popupWindow = null;
 
-    if (documentId && workspaceId && elementId) {
-        return { documentId, workspaceId, elementId };
-    }
+// Resolved OnShape ref for the currently selected part, or null.
+let selectedPart = null;
 
-    const pathMatch = url.pathname.match(/\/documents\/([^/]+)\/(?:w|v|m)\/([^/]+)\/e\/([^/]+)/);
+const form = {
+    manufacturing_type: '3d_print',
+    priority: 'medium',
+    quantity: 1,
+    material: '',
+    notes: '',
+    redesign_predecessor_id: null,
+};
 
-    if (pathMatch) {
-        return {
-            documentId: pathMatch[1],
-            workspaceId: pathMatch[2],
-            elementId: pathMatch[3]
-        };
-    }
-
-    throw new Error('Missing Onshape IDs in URL. Provide documentId, workspaceId, and elementId as query parameters or use an Onshape document URL.');
-}
-
-let assembly_info = null;
-
-async function update_assembly_info(force_reupdate_cache) {
-    const { documentId, workspaceId, elementId } = getOnshapeIdsFromUrl(window.location.href);
-    let resp = await fetch("https://api.frc5572.org/onshape/assembly_info", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + token
-        },
-        body: JSON.stringify({
-            document: documentId,
-            workspace: workspaceId,
-            element: elementId,
-            force_reupdate_cache: force_reupdate_cache,
-        })
-    });
-    assembly_info = await resp.json();
-    console.log(assembly_info);
-}
+// ---- Auth ----------------------------------------------------------------
 
 async function login(res) {
     token = res.token;
-    console.log(res.user_info);
-    document.querySelectorAll(".user-img").forEach((e) => {
-        e.src = res.user_info.data.picture;
-    });
-    await update_assembly_info(false);
-    await setup_form();
-    document.getElementById("login-page").classList.add("hidden");
-    document.getElementById("auth-content").classList.remove("hidden");
+    document.getElementById('user-avatar').src = res.user_info.data.picture;
+    document.getElementById('user-name').textContent = res.user_info.data.name;
+    document.getElementById('login-page').classList.add('hidden');
+    document.getElementById('main').classList.remove('hidden');
+    loadRedesignIssues();
 }
 
-function findPartPath(occurrence) {
-    if(!assembly_info) {
-        return null;
-    }
-    for(let i = 0; i < assembly_info.length; i++) {
-        if(assembly_info[i].id === occurrence) {
-            return assembly_info[i];
-        }
-    }
+// ---- Part resolution -----------------------------------------------------
 
-    return null;
+function showState(id) {
+    ['state-none', 'state-loading', 'state-one', 'state-multi', 'state-error']
+        .forEach(s => document.getElementById(s).classList.toggle('hidden', s !== id));
 }
 
-const server = new URL(window.location.href).searchParams.get('server');
+async function resolveSelection(occurrencePath, workspaceMicroversionId, documentId, workspaceId, elementId) {
+    showState('state-loading');
+    document.getElementById('submit-btn').disabled = true;
+    selectedPart = null;
 
-let popupWindow = null;
-let jwt = null;
-let token = null;
-
-window.addEventListener("message", async function(e) {
-    if(e.origin === "https://api.frc5572.org") {
-        let data = JSON.parse(e.data);
-        if(popupWindow) {
-            popupWindow.close();
-        }
-
-        let resp = await fetch("https://api.frc5572.org/login_complete", {
+    try {
+        const resp = await fetch(`${API}/onshape/resolve`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({
-                state: data.state,
-                code: data.code,
-                jwt: jwt
-            })
+                occurrence_path: occurrencePath,
+                workspace_microversion_id: workspaceMicroversionId,
+                document_id: documentId,
+                workspace_id: workspaceId,
+                element_id: elementId,
+            }),
         });
-        let res = await resp.json();
-        localStorage.setItem("ffst-login", JSON.stringify(res));
-        await login(res);
-    } else if (e.origin === server) {
-        if (e.data && e.data.messageName) {
-            console.log(e.data);
-            if (e.data.messageName === "SELECTION") {
-                let selections = [];
-                for(let i = 0; i < e.data.selections.length; i++) {
-                    let selection = e.data.selections[i];
-                    let occurrence = selection['occurrencePath'][0];
-                    let res = findPartPath(occurrence);
-                    if(!res) {
-                        await update_assembly_info(true);
-                        res = findPartPath(occurrence);
-                    }
-                    if(res) {
-                        selections.push(res);
-                    }
-                }
-                let zero = this.document.getElementById("part-not-selected");
-                let one = this.document.getElementById("part-selected");
-                let more = this.document.getElementById("too-many-parts-selected");
-                let part_name = this.document.getElementById("part-name");
-                if(selections.length == 0) {
-                    zero.classList.remove("hidden");
-                    one.classList.add("hidden");
-                    more.classList.add("hidden");
-                    set_part(null);
-                } else if(selections.length == 1) {
-                    zero.classList.add("hidden");
-                    one.classList.remove("hidden");
-                    more.classList.add("hidden");
-                    part_name.innerText = selections[0].name;
-                    set_part(selections[0]);
-                } else {
-                    zero.classList.add("hidden");
-                    one.classList.add("hidden");
-                    more.classList.remove("hidden");
-                    set_part(null);
-                }
-            }
+
+        if (!resp.ok) { showState('state-error'); return; }
+
+        const part = await resp.json();
+        selectedPart = part;
+
+        document.getElementById('part-name').textContent = part.part_name;
+        document.getElementById('part-link').href =
+            `https://cad.onshape.com/documents/${part.onshape.document_id}` +
+            `/w/${part.onshape.workspace_id}/m/${part.onshape.microversion_id}` +
+            `/e/${part.onshape.element_id}`;
+
+        const materialEl = document.getElementById('material');
+        if (part.material && !materialEl.dataset.userEdited) {
+            materialEl.value = part.material;
+            form.material = part.material;
         }
+
+        showState('state-one');
+        updateSubmitState();
+    } catch {
+        showState('state-error');
     }
-}, false);
+}
 
-/**
- * Initializes the Hello World application once the DOM is fully loaded.
- *
- * This handler performs the following steps:
- * 1. Parses Onshape document, workspace, and element IDs from the current
- *    page URL using {@link getOnshapeIdsFromUrl}.
- * 2. Sends an `applicationInit` message to the Onshape parent frame
- *    to signal that the app is ready.
- * 3. Attaches a click listener to the button that sends a `showMessageBubble` 
- *    message with the text "Hello World!" to the parent frame.
- *
- * @listens Document#DOMContentLoaded
- */
-document.addEventListener('DOMContentLoaded', async function() {
-    // Get reference to the parsed IDs.
-    const { documentId, workspaceId, elementId } = getOnshapeIdsFromUrl(window.location.href);
-    console.log('Onshape IDs:', { documentId, workspaceId, elementId });
+function updateSubmitState() {
+    document.getElementById('submit-btn').disabled = !selectedPart;
+}
 
-    // Send applicationInit message
-    const appInitMessage = {
-        documentId: documentId,
-        workspaceId: workspaceId,
-        elementId: elementId,
-        messageName: 'applicationInit'
+// ---- OnShape postMessage -------------------------------------------------
+
+function getOnshapeIds() {
+    const p = new URL(window.location.href).searchParams;
+    return {
+        documentId:  p.get('documentId'),
+        workspaceId: p.get('workspaceId'),
+        elementId:   p.get('elementId'),
     };
-    window.parent.postMessage(appInitMessage, '*');
+}
 
-    document.getElementById("login").addEventListener("click", async () => {
-        let resp = await fetch("https://api.frc5572.org/login");
-        let res = await resp.json();
-        jwt = res['jwt'];
-        popupWindow = window.open(res['auth_url'], "Login", "resizable");
-    });
+window.addEventListener('message', async (e) => {
+    // OAuth popup callback
+    if (e.origin === API) {
+        const data = JSON.parse(e.data);
+        popupWindow?.close();
 
-    let res = localStorage.getItem("ffst-login");
-    if(res) {
-        await login(JSON.parse(res));
+        const resp = await fetch(`${API}/login_complete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ state: data.state, code: data.code, jwt }),
+        });
+        const res = await resp.json();
+        localStorage.setItem('ffst-login', JSON.stringify(res));
+        await login(res);
+        return;
+    }
+
+    // OnShape selection events
+    if (SERVER && e.origin === SERVER && e.data?.messageName === 'SELECTION') {
+        const selections = e.data.selections ?? [];
+        const { documentId, workspaceId, elementId } = getOnshapeIds();
+
+        if (selections.length === 0) {
+            showState('state-none');
+            selectedPart = null;
+            updateSubmitState();
+        } else if (selections.length === 1) {
+            const { occurrencePath, workspaceMicroversionId } = selections[0];
+            await resolveSelection(occurrencePath, workspaceMicroversionId, documentId, workspaceId, elementId);
+        } else {
+            showState('state-multi');
+            selectedPart = null;
+            updateSubmitState();
+        }
     }
 });
 
-function setup_selector(list, callback) {
-    for(let i = 0; i < list.children.length; i++) {
-        let item = list.children[i];
-        if(i == 0) {
-            item.classList.add("selected");
-            callback(item.innerText);
-        }
+// ---- Form helpers --------------------------------------------------------
 
-        item.addEventListener("click", () => {
-            for(let j = 0; j < list.children.length; j++) {
-                let item2 = list.children[j];
-                if(i == j) {
-                    item2.classList.add("selected");
-                } else {
-                    item2.classList.remove("selected");
-                }
-            }
-            callback(item.innerText);
+function setupSelector(listId, key) {
+    const list = document.getElementById(listId);
+    const items = [...list.children];
+    // Select first item by default
+    items[0].classList.add('selected');
+    form[key] = items[0].dataset.value;
+
+    items.forEach((item) => {
+        item.addEventListener('click', () => {
+            items.forEach(el => el.classList.remove('selected'));
+            item.classList.add('selected');
+            form[key] = item.dataset.value;
         });
+    });
+}
+
+async function loadRedesignIssues() {
+    try {
+        const resp = await fetch(`${API}/parts?stage=redesign`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!resp.ok) return;
+
+        const issues = await resp.json();
+        const select = document.getElementById('redesign-pred');
+        issues.forEach(issue => {
+            const opt = document.createElement('option');
+            opt.value = issue.id;
+            opt.textContent = issue.part_name;
+            select.appendChild(opt);
+        });
+
+        document.getElementById('redesign-field').classList.toggle('hidden', issues.length === 0);
+    } catch {
+        document.getElementById('redesign-field').classList.add('hidden');
     }
 }
 
-let submit_button;
+// ---- Submit --------------------------------------------------------------
 
-let form = {
-    project: "",
-    manufacturing_type: "",
-    part: null,
-};
+async function submit() {
+    if (!selectedPart) return;
 
+    const btn = document.getElementById('submit-btn');
+    const errEl = document.getElementById('submit-error');
+    btn.disabled = true;
+    errEl.classList.add('hidden');
 
+    const predecessor = document.getElementById('redesign-pred').value || null;
 
-async function fill_projects() {
-    let project_list = document.getElementById("projects");
+    try {
+        const resp = await fetch(`${API}/parts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+                part_name: selectedPart.part_name,
+                onshape: selectedPart.onshape,
+                manufacturing_type: form.manufacturing_type,
+                priority: form.priority,
+                quantity: parseInt(document.getElementById('quantity').value, 10),
+                material: document.getElementById('material').value,
+                notes: document.getElementById('notes').value,
+                redesign_predecessor_id: predecessor,
+            }),
+        });
 
-    // TODO get project list from api
-
-    setup_selector(project_list, (i) => {
-        form.project = i;
-    });
-}
-
-async function setup_form() {
-    submit_button = document.getElementById("submit");
-    await fill_projects();
-    setup_selector(document.getElementById("item_type"), (i) => {
-        form.manufacturing_type = i;
-    });
-    submit_button.addEventListener("click", async () => {
-        if(form.part) {
-            console.log("Submitting", form);
-            let resp = await fetch("https://api.frc5572.org/onshape/new_issue", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: "Bearer " + token
-                },
-                body: JSON.stringify(form)
-            });
-            // TODO check resp.status and give feedback
+        if (resp.status === 201) {
+            // Reset form state after successful submit
+            showState('state-none');
+            selectedPart = null;
+            document.getElementById('notes').value = '';
+            document.getElementById('material').value = '';
+            document.getElementById('material').dataset.userEdited = '';
+            document.getElementById('redesign-pred').value = '';
+            updateSubmitState();
+        } else if (resp.status === 403) {
+            errEl.textContent = 'You don\'t have permission to submit parts.';
+            errEl.classList.remove('hidden');
+            btn.disabled = false;
+        } else {
+            errEl.textContent = 'Submission failed - please try again.';
+            errEl.classList.remove('hidden');
+            btn.disabled = false;
         }
-    });
-}
-
-function set_part(part) {
-    if(part) {
-        submit_button.classList.remove("unavailable");
-        form.part = part;
-    } else {
-        submit_button.classList.add("unavailable");
-        form.part = null;
+    } catch {
+        errEl.textContent = 'Network error - please try again.';
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
     }
 }
+
+// ---- Init ----------------------------------------------------------------
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const { documentId, workspaceId, elementId } = getOnshapeIds();
+
+    // Tell OnShape the extension is ready
+    window.parent.postMessage(
+        { messageName: 'applicationInit', documentId, workspaceId, elementId },
+        '*'
+    );
+
+    document.getElementById('login-btn').addEventListener('click', async () => {
+        const resp = await fetch(`${API}/login`);
+        const res = await resp.json();
+        jwt = res.jwt;
+        popupWindow = window.open(res.auth_url, 'Login', 'width=500,height=600,resizable');
+    });
+
+    setupSelector('mfg-type', 'manufacturing_type');
+    setupSelector('priority', 'priority');
+
+    document.getElementById('material').addEventListener('input', () => {
+        document.getElementById('material').dataset.userEdited = '1';
+    });
+
+    document.getElementById('submit-btn').addEventListener('click', submit);
+
+    // Restore session from localStorage
+    const saved = localStorage.getItem('ffst-login');
+    if (saved) {
+        await login(JSON.parse(saved));
+    }
+});

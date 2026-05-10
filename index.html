@@ -1,12 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RosParts</title>
-    <link rel="stylesheet" href="index.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parts Tracker</title>
+  <link rel="stylesheet" href="index.css">
 </head>
 <body>
-    
+
+  <div id="login-page">
+    <div class="login-box">
+      <h1>Parts Tracker</h1>
+      <button id="login-btn">Sign in with Google</button>
+    </div>
+  </div>
+
+  <div id="main" class="hidden">
+
+    <header class="topbar">
+      <span class="brand">Parts Tracker</span>
+      <nav class="type-filter" id="type-filter">
+        <button class="filter-btn active" data-type="">All</button>
+        <button class="filter-btn" data-type="3d_print">3D Print</button>
+        <button class="filter-btn" data-type="cnc">CNC</button>
+        <button class="filter-btn" data-type="manual_cut">Manual Cut</button>
+      </nav>
+      <div class="topbar-right">
+        <button id="refresh-btn" class="icon-btn" title="Refresh">↺</button>
+        <img id="user-avatar" class="avatar" src="" alt="">
+        <span id="user-name"></span>
+      </div>
+    </header>
+
+    <div id="board-wrap">
+      <div id="board"></div>
+    </div>
+
+  </div>
+
+  <!-- Issue detail panel -->
+  <div id="overlay" class="hidden"></div>
+  <aside id="panel" class="hidden">
+    <div class="panel-toolbar">
+      <button id="panel-close" class="icon-btn">✕</button>
+    </div>
+    <div id="panel-body"></div>
+  </aside>
+
+  <script src="index.js"></script>
 </body>
 </html>
