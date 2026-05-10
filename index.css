@@ -1,18 +1,18 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:        #f4f5f7;
-  --surface:   #ffffff;
-  --border:    #dfe1e6;
-  --text:      #172b4d;
-  --muted:     #6b778c;
-  --accent:    #0052cc;
-  --accent-hov:#0065ff;
-  --success:   #006644;
-  --danger:    #ae1a00;
+  --bg:        #0f1117;
+  --surface:   #1a1d23;
+  --border:    #2d3139;
+  --text:      #e8eaf0;
+  --muted:     #8b8fa8;
+  --accent:    #a40901;
+  --accent-hov:#c40b01;
+  --success:   #2ea043;
+  --danger:    #f85149;
   --col-w:     300px;
   --radius:    4px;
-  --shadow:    0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
+  --shadow:    0 2px 6px rgba(0,0,0,.5), 0 1px 3px rgba(0,0,0,.4);
 }
 
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -73,7 +73,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
   padding: 0; cursor: pointer; transition: box-shadow .1s, border-color .1s;
   overflow: hidden;
 }
-.issue-card:hover { box-shadow: var(--shadow); border-color: #b3bac5; }
+.issue-card:hover { box-shadow: var(--shadow); border-color: var(--muted); }
 .card-thumb {
   height: 90px; background: var(--bg) center/contain no-repeat;
   border-bottom: 1px solid var(--border);
@@ -85,12 +85,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
   font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 10px;
   text-transform: uppercase; letter-spacing: .03em;
 }
-.badge-type    { background: #e8f0fe; color: #1a56db; }
-.badge-critical { background: #fde8e8; color: #9b1c1c; }
-.badge-high    { background: #feecdc; color: #8b3a04; }
-.badge-medium  { background: #fefce8; color: #854d0e; }
-.badge-low     { background: #f3f4f6; color: #6b7280; }
-.badge-redesign { background: #fde8e8; color: #9b1c1c; }
+.badge-type    { background: #1c2e4a; color: #79b8ff; }
+.badge-critical { background: #3b0d0c; color: #ff7b72; }
+.badge-high    { background: #3b1a00; color: #ffa657; }
+.badge-medium  { background: #2d2200; color: #e3b341; }
+.badge-low     { background: #21262d; color: #8b949e; }
+.badge-redesign { background: #3b0d0c; color: #ff7b72; }
 .card-footer   { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--muted); font-size: 12px; }
 .assignee-chips { display: flex; }
 .assignee-chip  {
@@ -138,11 +138,11 @@ button.btn {
   font-size: 13px; border: 1px solid transparent;
 }
 .btn-primary  { background: var(--accent);  color: #fff; border-color: var(--accent); }
-.btn-primary:hover  { background: var(--accent-hov); }
-.btn-danger   { background: #fff; color: var(--danger); border-color: var(--danger); }
-.btn-danger:hover   { background: #fff8f7; }
+.btn-primary:hover  { background: var(--accent-hov); border-color: var(--accent-hov); }
+.btn-danger   { background: var(--surface); color: var(--danger); border-color: var(--danger); }
+.btn-danger:hover   { background: #2d1214; }
 .btn-default  { background: var(--surface); color: var(--text); border-color: var(--border); }
-.btn-default:hover  { border-color: #b3bac5; }
+.btn-default:hover  { border-color: var(--muted); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 
 /* ---- Panel: section headings ---- */
@@ -176,6 +176,7 @@ button.btn {
   width: 100%; padding: 8px 10px; border: 1px solid var(--border);
   border-radius: var(--radius); font: inherit; font-size: 13px;
   resize: vertical; min-height: 80px;
+  background: var(--bg); color: var(--text);
 }
 .add-comment textarea:focus { outline: none; border-color: var(--accent); }
 .add-comment-footer { display: flex; justify-content: flex-end; margin-top: 8px; }
@@ -190,7 +191,7 @@ button.btn {
   border-radius: var(--radius); padding: 4px 8px; font: inherit; font-size: 13px;
   cursor: pointer; color: var(--text);
 }
-.ms-trigger:hover { border-color: #b3bac5; }
+.ms-trigger:hover { border-color: var(--muted); }
 .ms-dropdown {
   position: absolute; z-index: 300; top: calc(100% + 4px); left: 0; right: 0;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -199,6 +200,7 @@ button.btn {
 .ms-search {
   padding: 6px 10px; border: none; border-bottom: 1px solid var(--border);
   font: inherit; font-size: 13px; outline: none; flex-shrink: 0;
+  background: var(--surface); color: var(--text);
 }
 .ms-list { overflow-y: auto; flex: 1; }
 .ms-item {
@@ -233,7 +235,7 @@ button.btn {
 /* ---- Generic button (login) ---- */
 button:not(.btn):not(.filter-btn):not(.icon-btn) {
   padding: 8px 20px; border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--surface); font: inherit; cursor: pointer;
+  background: var(--surface); color: var(--text); font: inherit; cursor: pointer;
 }
 button:not(.btn):not(.filter-btn):not(.icon-btn):hover {
   border-color: var(--accent); color: var(--accent);
