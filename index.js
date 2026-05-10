@@ -157,7 +157,6 @@ function renderCard(issue) {
         </div>
         <div class="card-footer">
           <div class="assignee-chips">${assigneeHtml}${extraAssignees}</div>
-          <span class="card-submitter" title="Submitted by ${esc(issue.submitted_by)}">${esc(userName(issue.submitted_by))}</span>
           ${issue.comments.length > 0 ? `<span>💬 ${issue.comments.length}</span>` : ''}
           <span>&times;${issue.quantity}</span>
         </div>
@@ -200,7 +199,7 @@ function renderPanel(issue) {
 
   const commentsHtml = issue.comments.map(c => `
     <div class="comment">
-      <div class="comment-meta"><strong>${esc(c.author)}</strong> &nbsp;${timeAgo(c.created_at)}</div>
+      <div class="comment-meta"><strong>${esc(userName(c.author))}</strong> &nbsp;${timeAgo(c.created_at)}</div>
       <div class="md">${c.body_html}</div>
     </div>
   `).join('');
