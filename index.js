@@ -83,6 +83,17 @@ function userName(email) {
   return u ? u.name : email.split('@')[0];
 }
 
+function userAvatar(email, size = 22) {
+  const u = allUsers.find(u => u.email === email);
+  const label = esc(u?.name || email);
+  if (u?.picture) {
+    return `<img class="assignee-chip" src="${esc(u.picture)}" title="${label}"
+              style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;display:inline-block;">`;
+  }
+  const initials = (u?.name || email.split('@')[0]).slice(0, 2).toUpperCase();
+  return `<div class="assignee-chip" title="${label}">${initials}</div>`;
+}
+
 // ---- Data ----------------------------------------------------------------
 
 async function loadIssues() {
@@ -126,10 +137,7 @@ function renderBoard() {
 }
 
 function renderCard(issue) {
-  const assigneeHtml = issue.assignees.slice(0, 3).map(email => {
-    const initials = email.split('@')[0].slice(0, 2).toUpperCase();
-    return `<div class="assignee-chip" title="${email}">${initials}</div>`;
-  }).join('');
+  const assigneeHtml = issue.assignees.slice(0, 3).map(email => userAvatar(email)).join('');
 
   const extraAssignees = issue.assignees.length > 3
     ? `<span style="font-size:11px;color:var(--muted)">+${issue.assignees.length - 3}</span>`
@@ -313,6 +321,9 @@ function buildMultiSelect(cellId, users, initialSelected, onChange) {
     return filtered.map(u => `
       <div class="ms-item${selected.has(u.email) ? ' ms-selected' : ''}" data-email="${esc(u.email)}">
         <span class="ms-check">✓</span>
+        ${u.picture
+          ? `<img class="ms-avatar" src="${esc(u.picture)}" alt="">`
+          : `<div class="ms-avatar ms-avatar-initials">${esc((u.name||u.email).slice(0,2).toUpperCase())}</div>`}
         <span class="ms-name">${esc(u.name)}</span>
         <span class="ms-email-hint">${esc(u.email)}</span>
       </div>
