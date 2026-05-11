@@ -5,10 +5,13 @@ let token = null;
 let jwt   = null;
 let popupWindow = null;
 
-let allIssues   = [];
-let allUsers    = [];   // [{email, name}]
-let activeType  = '';   // '' | '3d_print' | 'cnc' | 'manual_cut'
-let openIssueId = null;
+let allIssues        = [];
+let allUsers         = [];   // [{email, name}]
+let currentUserEmail = null;
+let isAdmin          = false;
+let activeScope      = 'mine'; // 'mine' | 'all'
+let activeType       = '';     // '' | '3d_print' | 'cnc' | 'manual_cut'
+let openIssueId      = null;
 
 // ---- Stage / type metadata -----------------------------------------------
 
@@ -47,10 +50,18 @@ const ALL_STAGE_ORDER = [
   'complete', 'redesign',
 ];
 
-function stagesFor(type) {
-  if (type) return TYPE_STAGES[type] ?? [];
-  // All: only stages that have at least one issue.
-  const present = new Set(allIssues.map(i => i.stage));
+function visibleIssues() {
+  const scoped = activeScope === 'mine' && currentUserEmail
+    ? allIssues.filter(i =>
+        i.assignees.includes(currentUserEmail) ||
+        i.reviewers.includes(currentUserEmail))
+    : allIssues;
+  return activeType ? scoped.filter(i => i.manufacturing_type === activeType) : scoped;
+}
+
+function stagesFor(issues) {
+  if (activeType) return TYPE_STAGES[activeType] ?? [];
+  const present = new Set(issues.map(i => i.stage));
   return ALL_STAGE_ORDER.filter(s => present.has(s));
 }
 
@@ -64,7 +75,9 @@ function nextStage(issue) {
 
 async function login(res) {
   token = res.token;
-  document.getElementById('user-avatar').src = res.user_info.data.picture;
+  currentUserEmail = res.user_info.email;
+  isAdmin = !!(res.user_info.data?.permissions?.admin);
+  document.getElementById('user-avatar').src = `${API}/avatars/${encodeURIComponent(res.user_info.email)}`;
   document.getElementById('user-name').textContent = res.user_info.data.name;
   document.getElementById('login-page').classList.add('hidden');
   document.getElementById('main').classList.remove('hidden');
@@ -86,8 +99,8 @@ function userName(email) {
 function userAvatar(email, size = 22) {
   const u = allUsers.find(u => u.email === email);
   const label = esc(u?.name || email);
-  if (u?.picture) {
-    return `<img class="assignee-chip" src="${esc(u.picture)}" title="${label}"
+  if (u) {
+    return `<img class="assignee-chip" src="${API}/avatars/${encodeURIComponent(u.email)}" title="${label}"
               style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;display:inline-block;">`;
   }
   const initials = (u?.name || email.split('@')[0]).slice(0, 2).toUpperCase();
@@ -112,11 +125,17 @@ async function loadIssues() {
 // ---- Board ---------------------------------------------------------------
 
 function renderBoard() {
-  const stages  = stagesFor(activeType);
-  const issues  = activeType ? allIssues.filter(i => i.manufacturing_type === activeType) : allIssues;
+  const issues  = visibleIssues();
+  const stages  = stagesFor(issues);
   const byStage = Object.fromEntries(stages.map(s => [s, []]));
   for (const issue of issues) {
     if (byStage[issue.stage] !== undefined) byStage[issue.stage].push(issue);
+  }
+
+  if (stages.length === 0) {
+    document.getElementById('board').innerHTML =
+      `<p style="color:var(--muted);padding:32px;font-size:14px">No issues assigned to you.</p>`;
+    return;
   }
 
   document.getElementById('board').innerHTML = stages.map(stage => `
@@ -197,27 +216,100 @@ function renderPanel(issue) {
       : '',
   ].filter(Boolean).join('');
 
-  const commentsHtml = issue.comments.map(c => `
-    <div class="comment">
-      <div class="comment-meta"><strong>${esc(userName(c.author))}</strong> &nbsp;${timeAgo(c.created_at)}</div>
-      <div class="md">${c.body_html}</div>
-    </div>
-  `).join('');
+  // Build interleaved activity timeline
+  const activity = [
+    ...issue.comments.map(c => ({ type: 'comment', ts: c.created_at, data: c })),
+    ...(issue.history || []).map(h => ({ type: 'history', ts: h.created_at, data: h })),
+  ].sort((a, b) => new Date(a.ts) - new Date(b.ts));
+
+  const activityHtml = activity.map(item => {
+    if (item.type === 'comment') {
+      const c = item.data;
+      return `
+        <div class="comment">
+          <div class="comment-meta"><strong>${esc(userName(c.author))}</strong> &nbsp;${timeAgo(c.created_at)}</div>
+          <div class="md">${c.body_html}</div>
+        </div>`;
+    } else {
+      const h = item.data;
+      const fromHtml = h.from ? `<span class="hist-from">${esc(h.from)}</span> → ` : '';
+      return `
+        <div class="history-entry">
+          <span class="hist-actor">${esc(userName(h.actor))}</span>
+          changed <strong>${esc(h.field)}</strong>:
+          ${fromHtml}<span class="hist-to">${esc(h.to)}</span>
+          <span class="hist-time">${timeAgo(h.created_at)}</span>
+        </div>`;
+    }
+  }).join('');
+
+  // Meta-grid: admin sees editable controls, others see static values
+  const stageCell = isAdmin
+    ? `<select id="admin-stage" class="admin-select">
+        ${Object.entries(STAGE_LABEL).map(([v, l]) =>
+          `<option value="${v}"${issue.stage === v ? ' selected' : ''}>${l}</option>`
+        ).join('')}
+       </select>`
+    : `<strong>${STAGE_LABEL[issue.stage] ?? issue.stage}</strong>`;
+
+  const typeCell = isAdmin
+    ? `<select id="admin-type" class="admin-select">
+        ${Object.entries(TYPE_LABEL).map(([v, l]) =>
+          `<option value="${v}"${issue.manufacturing_type === v ? ' selected' : ''}>${l}</option>`
+        ).join('')}
+       </select>`
+    : (TYPE_LABEL[issue.manufacturing_type] ?? issue.manufacturing_type);
+
+  const priorityCell = isAdmin
+    ? `<select id="admin-priority" class="admin-select">
+        ${['critical','high','medium','low'].map(p =>
+          `<option value="${p}"${issue.priority === p ? ' selected' : ''}>${p.charAt(0).toUpperCase()+p.slice(1)}</option>`
+        ).join('')}
+       </select>`
+    : `<span class="badge badge-${issue.priority}">${issue.priority}</span>`;
+
+  const qtyCell = isAdmin
+    ? `<input id="admin-qty" class="admin-input" type="number" min="1" value="${issue.quantity}" style="width:72px">`
+    : issue.quantity;
+
+  const materialCell = isAdmin
+    ? `<input id="admin-material" class="admin-input" type="text" value="${esc(issue.material)}">`
+    : (esc(issue.material) || '<em>-</em>');
+
+  const partNameHtml = isAdmin
+    ? `<input id="admin-name" class="admin-title-input" type="text" value="${esc(issue.part_name)}">`
+    : `<div class="panel-title">${esc(issue.part_name)}</div>`;
+
+  const notesHtml = isAdmin
+    ? `<div>
+        <div class="section-heading">Description</div>
+        <div style="margin-top:10px">
+          <textarea id="admin-notes" class="admin-textarea">${esc(issue.notes)}</textarea>
+          <div style="text-align:right;margin-top:6px">
+            <button class="btn btn-default" id="save-notes-btn">Save Description</button>
+          </div>
+        </div>
+       </div>`
+    : (issue.notes_html ? `
+        <div>
+          <div class="section-heading">Description</div>
+          <div class="md" style="margin-top:10px">${issue.notes_html}</div>
+        </div>` : '');
 
   document.getElementById('panel-body').innerHTML = `
     <div>
-      <div class="panel-title">${esc(issue.part_name)}</div>
+      ${partNameHtml}
       <a class="panel-onshape-link" href="${onshapeUrl}" target="_blank">Open in OnShape ↗</a>
       ${redesignChain}
     </div>
 
     <dl class="meta-grid">
       <dt class="meta-label">Stage</dt>
-      <dd class="meta-value"><strong>${STAGE_LABEL[issue.stage] ?? issue.stage}</strong></dd>
+      <dd class="meta-value">${stageCell}</dd>
       <dt class="meta-label">Type</dt>
-      <dd class="meta-value">${TYPE_LABEL[issue.manufacturing_type] ?? issue.manufacturing_type}</dd>
+      <dd class="meta-value">${typeCell}</dd>
       <dt class="meta-label">Priority</dt>
-      <dd class="meta-value"><span class="badge badge-${issue.priority}">${issue.priority}</span></dd>
+      <dd class="meta-value">${priorityCell}</dd>
       <dt class="meta-label">Assignees</dt>
       <dd class="meta-value" id="assignees-cell"></dd>
       <dt class="meta-label">Reviewers</dt>
@@ -225,9 +317,9 @@ function renderPanel(issue) {
       <dt class="meta-label">Submitted by</dt>
       <dd class="meta-value">${esc(userName(issue.submitted_by))}</dd>
       <dt class="meta-label">Quantity</dt>
-      <dd class="meta-value">${issue.quantity}</dd>
+      <dd class="meta-value">${qtyCell}</dd>
       <dt class="meta-label">Material</dt>
-      <dd class="meta-value">${esc(issue.material) || '<em>-</em>'}</dd>
+      <dd class="meta-value">${materialCell}</dd>
     </dl>
 
     <div class="actions">
@@ -239,12 +331,7 @@ function renderPanel(issue) {
         : ''}
     </div>
 
-    ${issue.notes_html ? `
-      <div>
-        <div class="section-heading">Description</div>
-        <div class="md" style="margin-top:10px">${issue.notes_html}</div>
-      </div>
-    ` : ''}
+    ${notesHtml}
 
     <div>
       <div class="section-heading">Files (${issue.files.length})</div>
@@ -264,8 +351,8 @@ function renderPanel(issue) {
     </div>
 
     <div>
-      <div class="section-heading">Comments (${issue.comments.length})</div>
-      <div id="comments-list">${commentsHtml}</div>
+      <div class="section-heading">Activity (${issue.comments.length + (issue.history||[]).length})</div>
+      <div id="activity-list">${activityHtml || '<p style="color:var(--muted);font-size:13px;margin-top:10px">No activity yet.</p>'}</div>
       <div class="add-comment" style="margin-top:14px">
         <textarea id="comment-input" placeholder="Leave a comment… (Markdown supported)"></textarea>
         <div class="add-comment-footer">
@@ -275,7 +362,7 @@ function renderPanel(issue) {
     </div>
   `;
 
-  // Wire actions
+  // Wire standard actions
   document.getElementById('advance-btn')?.addEventListener('click', () => advanceStage(issue, next));
   document.getElementById('redesign-btn')?.addEventListener('click', () => markRedesign(issue));
   document.getElementById('file-upload-btn').addEventListener('click', () => uploadFiles(issue.id));
@@ -289,6 +376,34 @@ function renderPanel(issue) {
     patchIssueLocal(issue.id, { reviewers: sel })
   );
 
+  // Admin controls
+  if (isAdmin) {
+    function adminPatch(update) { patchIssueLocal(issue.id, update); }
+
+    document.getElementById('admin-name')?.addEventListener('change', e =>
+      adminPatch({ part_name: e.target.value.trim() })
+    );
+    document.getElementById('admin-stage')?.addEventListener('change', e =>
+      adminPatch({ stage: e.target.value })
+    );
+    document.getElementById('admin-type')?.addEventListener('change', e =>
+      adminPatch({ manufacturing_type: e.target.value })
+    );
+    document.getElementById('admin-priority')?.addEventListener('change', e =>
+      adminPatch({ priority: e.target.value })
+    );
+    document.getElementById('admin-qty')?.addEventListener('change', e =>
+      adminPatch({ quantity: parseInt(e.target.value, 10) })
+    );
+    document.getElementById('admin-material')?.addEventListener('change', e =>
+      adminPatch({ material: e.target.value })
+    );
+    document.getElementById('save-notes-btn')?.addEventListener('click', () => {
+      const val = document.getElementById('admin-notes')?.value ?? '';
+      adminPatch({ notes: val });
+    });
+  }
+
   // Redesign chain navigation
   document.querySelectorAll('[data-id]').forEach(el => {
     el.addEventListener('click', e => { e.preventDefault(); openPanel(el.dataset.id); });
@@ -298,11 +413,18 @@ function renderPanel(issue) {
 // ---- Mutations -----------------------------------------------------------
 
 // Optimistic local patch — updates memory + board immediately, syncs in background.
-function patchIssueLocal(id, update) {
+async function patchIssueLocal(id, update) {
   const issue = allIssues.find(i => i.id === id);
   if (issue) Object.assign(issue, update);
   renderBoard();
-  api('PATCH', `/parts/${id}`, update);
+  const resp = await api('PATCH', `/parts/${id}`, update);
+  if (resp.ok) {
+    const fresh = await resp.json();
+    const idx = allIssues.findIndex(i => i.id === id);
+    if (idx !== -1) allIssues[idx] = fresh;
+    renderBoard();
+    if (openIssueId === id) renderPanel(fresh);
+  }
 }
 
 // ---- Multi-select dropdown -----------------------------------------------
@@ -326,9 +448,9 @@ function buildMultiSelect(cellId, users, initialSelected, onChange) {
     return filtered.map(u => `
       <div class="ms-item${selected.has(u.email) ? ' ms-selected' : ''}" data-email="${esc(u.email)}">
         <span class="ms-check">✓</span>
-        ${u.picture
-          ? `<img class="ms-avatar" src="${esc(u.picture)}" alt="">`
-          : `<div class="ms-avatar ms-avatar-initials">${esc((u.name||u.email).slice(0,2).toUpperCase())}</div>`}
+        <img class="ms-avatar" src="${API}/avatars/${encodeURIComponent(u.email)}"
+             alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'">
+        <div class="ms-avatar ms-avatar-initials" style="display:none">${esc((u.name||u.email).slice(0,2).toUpperCase())}</div>
         <span class="ms-name">${esc(u.name)}</span>
         <span class="ms-email-hint">${esc(u.email)}</span>
       </div>
@@ -499,9 +621,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('refresh-btn').addEventListener('click', loadIssues);
 
-  document.querySelectorAll('.filter-btn').forEach(btn => {
+  document.querySelectorAll('.scope-filter .filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.scope-filter .filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeScope = btn.dataset.scope;
+      renderBoard();
+    });
+  });
+
+  document.querySelectorAll('.type-filter .filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.type-filter .filter-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       activeType = btn.dataset.type;
       renderBoard();

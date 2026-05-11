@@ -32,7 +32,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
   position: sticky; top: 0; z-index: 100;
 }
 .brand { font-weight: 700; font-size: 15px; white-space: nowrap; }
-.type-filter { display: flex; gap: 4px; }
+.scope-filter { display: flex; gap: 4px; }
+.type-filter  { display: flex; gap: 4px; }
+.topbar-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
 .filter-btn {
   padding: 4px 12px; border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--surface); cursor: pointer; font: inherit; font-size: 13px;
@@ -180,6 +182,41 @@ button.btn {
 }
 .add-comment textarea:focus { outline: none; border-color: var(--accent); }
 .add-comment-footer { display: flex; justify-content: flex-end; margin-top: 8px; }
+
+/* ---- History entries ---- */
+.history-entry {
+  border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px;
+  font-size: 12px; color: var(--muted); line-height: 1.5;
+}
+.hist-actor { color: var(--text); font-weight: 600; }
+.hist-from  { color: var(--muted); text-decoration: line-through; font-size: 12px; }
+.hist-to    { color: var(--text); font-size: 12px; }
+.hist-time  { float: right; }
+
+/* ---- Admin edit controls ---- */
+.admin-select {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font: inherit; font-size: 13px; padding: 3px 6px; cursor: pointer;
+}
+.admin-select:focus { outline: none; border-color: var(--accent); }
+.admin-input {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font: inherit; font-size: 13px; padding: 3px 6px; width: 100%;
+}
+.admin-input:focus { outline: none; border-color: var(--accent); }
+.admin-title-input {
+  width: 100%; font-size: 20px; font-weight: 700; background: transparent;
+  border: none; border-bottom: 1px solid var(--border); color: var(--text);
+  padding: 2px 0; margin-bottom: 4px; font-family: inherit;
+}
+.admin-title-input:focus { outline: none; border-bottom-color: var(--accent); }
+.admin-textarea {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: var(--radius); font: inherit; font-size: 13px;
+  resize: vertical; min-height: 120px;
+  background: var(--bg); color: var(--text);
+}
+.admin-textarea:focus { outline: none; border-color: var(--accent); }
 
 /* ---- Card submitter ---- */
 .card-submitter { font-size: 11px; color: var(--muted); white-space: nowrap; }
