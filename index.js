@@ -611,6 +611,16 @@ document.addEventListener('DOMContentLoaded', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ state: data.state, code: data.code, jwt }),
     });
+    if (resp.status === 403) {
+      const body = await resp.json().catch(() => ({}));
+      if (body.not_in_roster) {
+        const params = new URLSearchParams();
+        if (body.email) params.set('email', body.email);
+        if (body.name)  params.set('name',  body.name);
+        window.location.href = `${API}/request_access?${params}`;
+        return;
+      }
+    }
     const res = await resp.json();
     localStorage.setItem('ffst-login', JSON.stringify(res));
     await login(res);
