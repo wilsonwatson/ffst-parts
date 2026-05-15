@@ -9,15 +9,23 @@ let allIssues        = [];
 let allUsers         = [];   // [{email, name}]
 let currentUserEmail = null;
 let isAdmin          = false;
-let activeScope      = 'mine'; // 'mine' | 'all'
+let activeScope      = 'mine'; // 'mine' | 'all' | 'assignees'
 let activeType       = '';     // '' | '3d_print' | 'cnc' | 'manual_cut'
 let openIssueId      = null;
+const collapsedSections = new Set(); // non-empty sections explicitly collapsed
+const expandedSections  = new Set(); // empty sections explicitly expanded
+
+function isSectionCollapsed(key, hasIssues) {
+  if (collapsedSections.has(key)) return true;
+  if (!hasIssues && !expandedSections.has(key)) return true;
+  return false;
+}
 
 // ---- Stage / type metadata -----------------------------------------------
 
 const TYPE_STAGES = {
   '3d_print':   ['ready_for_slicing', 'ready_for_printing', 'printing', 'complete'],
-  'cnc':        ['ready_for_cam', 'ready_for_machining', 'machining', 'ready_for_deburring', 'complete'],
+  'cnc':        ['ready_for_cam', 'ready_for_machining', 'machining', 'complete'],
   'manual_cut': ['ready_for_cutting', 'cutting', 'complete'],
 };
 
@@ -28,7 +36,6 @@ const STAGE_LABEL = {
   ready_for_cam:       'Ready for CAM',
   ready_for_machining: 'Ready for Machining',
   machining:           'Machining',
-  ready_for_deburring: 'Ready for Deburring',
   ready_for_cutting:   'Ready for Cutting',
   cutting:             'Cutting',
   complete:            'Complete',
@@ -46,7 +53,6 @@ const ALL_STAGE_ORDER = [
   'ready_for_slicing', 'ready_for_cam', 'ready_for_cutting',
   'ready_for_printing', 'ready_for_machining',
   'printing', 'machining', 'cutting',
-  'ready_for_deburring',
   'complete', 'redesign',
 ];
 
@@ -55,7 +61,7 @@ function visibleIssues() {
     ? allIssues.filter(i =>
         i.assignees.includes(currentUserEmail) ||
         i.reviewers.includes(currentUserEmail))
-    : allIssues;
+    : allIssues; // 'all' and 'assignees' both show everything
   return activeType ? scoped.filter(i => i.manufacturing_type === activeType) : scoped;
 }
 
@@ -125,6 +131,17 @@ async function loadIssues() {
 // ---- Board ---------------------------------------------------------------
 
 function renderBoard() {
+  const board = document.getElementById('board');
+  if (activeScope === 'assignees') {
+    board.classList.add('board--assignees');
+    renderAssigneeView();
+  } else {
+    board.classList.remove('board--assignees');
+    renderBoardView();
+  }
+}
+
+function renderBoardView() {
   const issues  = visibleIssues();
   const stages  = stagesFor(issues);
   const byStage = Object.fromEntries(stages.map(s => [s, []]));
@@ -145,7 +162,7 @@ function renderBoard() {
         <span class="col-count">${byStage[stage].length}</span>
       </div>
       <div class="col-cards">
-        ${byStage[stage].map(renderCard).join('')}
+        ${byStage[stage].map(i => renderCard(i)).join('')}
       </div>
     </div>
   `).join('');
@@ -153,10 +170,147 @@ function renderBoard() {
   document.querySelectorAll('.issue-card').forEach(el => {
     el.addEventListener('click', () => openPanel(el.dataset.id));
   });
-
 }
 
-function renderCard(issue) {
+// ---- Assignee view -------------------------------------------------------
+
+function renderAssigneeView() {
+  const issues = visibleIssues().filter(i => i.stage !== 'complete' && i.stage !== 'redesign');
+
+  // Group: issues with no assignees go to 'open'; others appear once per assignee.
+  const byEmail = new Map();
+  const unassigned = [];
+  for (const issue of issues) {
+    if (issue.assignees.length === 0) {
+      unassigned.push(issue);
+    } else {
+      for (const email of issue.assignees) {
+        if (!byEmail.has(email)) byEmail.set(email, []);
+        byEmail.get(email).push(issue);
+      }
+    }
+  }
+
+  const sortedEmails = allUsers
+    .map(u => u.email)
+    .sort((a, b) => userName(a).localeCompare(userName(b)));
+
+  document.getElementById('board').innerHTML = [
+    avSection('', 'Open', unassigned),
+    ...sortedEmails.map(email => avSection(email, userName(email), byEmail.get(email) ?? [])),
+  ].join('');
+
+  wireAssigneeView();
+}
+
+function avSection(email, label, issues) {
+  const key = email || 'open';
+  const hasIssues = issues.length > 0;
+  const isCollapsed = isSectionCollapsed(key, hasIssues);
+  const avatarHtml = email
+    ? `<img class="av-avatar" src="${API}/avatars/${encodeURIComponent(email)}" alt=""
+           onerror="this.style.display='none'">`
+    : `<span class="av-icon">📋</span>`;
+
+  const cardHtml = issues.length
+    ? issues.map(i => renderCard(i, `draggable="true" data-source-email="${esc(email)}"`)).join('')
+    : `<span class="av-empty">No open items</span>`;
+
+  return `
+    <div class="av-section${isCollapsed ? ' collapsed' : ''}" data-email="${esc(email)}" data-has-issues="${hasIssues}">
+      <div class="av-header" data-section-key="${esc(key)}">
+        <span class="av-chevron">▼</span>
+        ${avatarHtml}
+        <span class="av-name">${esc(label)}</span>
+        <span class="av-count">${issues.length}</span>
+      </div>
+      <div class="av-cards">${cardHtml}</div>
+    </div>`;
+}
+
+function wireAssigneeView() {
+  // Collapse toggles
+  document.querySelectorAll('.av-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const key = header.dataset.sectionKey;
+      const section = header.closest('.av-section');
+      const hasIssues = section.dataset.hasIssues === 'true';
+      if (isSectionCollapsed(key, hasIssues)) {
+        collapsedSections.delete(key);
+        if (!hasIssues) expandedSections.add(key);
+        section.classList.remove('collapsed');
+      } else {
+        collapsedSections.add(key);
+        expandedSections.delete(key);
+        section.classList.add('collapsed');
+      }
+    });
+  });
+
+  // Card clicks
+  document.querySelectorAll('.issue-card').forEach(el => {
+    el.addEventListener('click', () => openPanel(el.dataset.id));
+  });
+
+  // Drag and drop
+  let activeDrag = null; // { id, sourceEmail }
+
+  document.querySelectorAll('.issue-card[draggable]').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      activeDrag = { id: card.dataset.id, sourceEmail: card.dataset.sourceEmail };
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.stopPropagation();
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      activeDrag = null;
+    });
+  });
+
+  document.querySelectorAll('.av-section').forEach(section => {
+    const targetEmail = section.dataset.email;
+
+    section.addEventListener('dragover', e => {
+      if (!activeDrag) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      section.classList.add('drag-over');
+    });
+
+    section.addEventListener('dragleave', e => {
+      if (!section.contains(e.relatedTarget)) {
+        section.classList.remove('drag-over');
+      }
+    });
+
+    section.addEventListener('drop', e => {
+      e.preventDefault();
+      section.classList.remove('drag-over');
+      if (!activeDrag) return;
+      const { id, sourceEmail } = activeDrag;
+      activeDrag = null;
+      if (sourceEmail !== targetEmail) {
+        reassignIssue(id, sourceEmail, targetEmail);
+      }
+    });
+  });
+}
+
+async function reassignIssue(id, sourceEmail, targetEmail) {
+  const issue = allIssues.find(i => i.id === id);
+  if (!issue) return;
+  let assignees = [...issue.assignees];
+  if (sourceEmail && assignees.includes(sourceEmail)) {
+    assignees = assignees.filter(e => e !== sourceEmail);
+  }
+  if (targetEmail && !assignees.includes(targetEmail)) {
+    assignees.push(targetEmail);
+  }
+  await patchIssueLocal(id, { assignees });
+}
+
+function renderCard(issue, extraAttrs = '') {
   const assigneeHtml = issue.assignees.slice(0, 3).map(email => userAvatar(email)).join('');
 
   const extraAssignees = issue.assignees.length > 3
@@ -164,7 +318,7 @@ function renderCard(issue) {
     : '';
 
   return `
-    <div class="issue-card" data-id="${issue.id}">
+    <div class="issue-card" data-id="${issue.id}"${extraAttrs ? ' ' + extraAttrs : ''}>
       ${issue.thumbnail
         ? `<div class="card-thumb" style="background-image:url('data:image/png;base64,${issue.thumbnail}')"></div>`
         : ''}
@@ -329,6 +483,9 @@ function renderPanel(issue) {
       ${!isTerminal
         ? `<button class="btn btn-danger" id="redesign-btn">Mark as Redesign</button>`
         : ''}
+      ${isAdmin
+        ? `<button class="btn btn-delete" id="delete-btn">Delete Part</button>`
+        : ''}
     </div>
 
     ${notesHtml}
@@ -365,6 +522,7 @@ function renderPanel(issue) {
   // Wire standard actions
   document.getElementById('advance-btn')?.addEventListener('click', () => advanceStage(issue, next));
   document.getElementById('redesign-btn')?.addEventListener('click', () => markRedesign(issue));
+  document.getElementById('delete-btn')?.addEventListener('click', () => deletePart(issue));
   document.getElementById('file-upload-btn').addEventListener('click', () => uploadFiles(issue.id));
   document.getElementById('comment-submit').addEventListener('click', () => submitComment(issue.id));
 
@@ -526,6 +684,20 @@ async function advanceStage(issue, next) {
   await loadIssues();
 }
 
+async function deletePart(issue) {
+  if (!confirm(`Delete "${issue.part_name}"? This cannot be undone.`)) return;
+  const btn = document.getElementById('delete-btn');
+  if (btn) btn.disabled = true;
+  const resp = await api('DELETE', `/parts/${issue.id}`);
+  if (resp.ok) {
+    allIssues = allIssues.filter(i => i.id !== issue.id);
+    closePanel();
+    renderBoard();
+  } else {
+    if (btn) btn.disabled = false;
+  }
+}
+
 async function markRedesign(issue) {
   if (!confirm(`Mark "${issue.part_name}" as redesign? This is permanent.`)) return;
   const btn = document.getElementById('redesign-btn');
@@ -622,6 +794,15 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     const res = await resp.json();
+    if (res.needs_enrollment) {
+      const params = new URLSearchParams();
+      params.set('pending_jwt', res.pending_jwt);
+      if (res.email)       params.set('email',       res.email);
+      if (res.google_name) params.set('google_name', res.google_name);
+      params.set('return', window.location.href);
+      window.location.href = `${API}/enroll?${params}`;
+      return;
+    }
     localStorage.setItem('ffst-login', JSON.stringify(res));
     await login(res);
   });

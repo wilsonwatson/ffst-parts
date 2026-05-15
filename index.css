@@ -145,6 +145,8 @@ button.btn {
 .btn-danger:hover   { background: #2d1214; }
 .btn-default  { background: var(--surface); color: var(--text); border-color: var(--border); }
 .btn-default:hover  { border-color: var(--muted); }
+.btn-delete   { background: var(--danger); color: #fff; border-color: var(--danger); margin-left: auto; }
+.btn-delete:hover   { background: #c93d35; border-color: #c93d35; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 
 /* ---- Panel: section headings ---- */
@@ -268,6 +270,52 @@ button.btn {
 .redesign-link { font-size: 13px; }
 .redesign-link a { color: var(--accent); text-decoration: none; }
 .redesign-link a:hover { text-decoration: underline; }
+
+/* ---- Assignee view ---- */
+.board--assignees { display: block !important; width: auto !important; padding: 0 !important; }
+
+.av-section { border-bottom: 1px solid var(--border); }
+.av-section:last-child { border-bottom: none; }
+.av-section.drag-over > .av-cards { background: rgba(164,9,1,.07); border-radius: var(--radius); }
+
+.av-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; cursor: pointer; user-select: none;
+}
+.av-header:hover { background: var(--surface); }
+.av-chevron { font-size: 10px; color: var(--muted); width: 12px; flex-shrink: 0; transition: transform .15s; }
+.av-section.collapsed .av-chevron { transform: rotate(-90deg); }
+.av-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.av-icon { width: 28px; text-align: center; flex-shrink: 0; font-size: 16px; }
+.av-name { font-weight: 600; font-size: 13px; flex: 1; }
+.av-count {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 1px 8px; font-size: 12px; color: var(--muted);
+}
+
+.av-cards {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  padding: 4px 16px 16px; min-height: 56px;
+  transition: background .15s;
+}
+.av-section.collapsed .av-cards { display: none; }
+.av-empty { color: var(--muted); font-size: 13px; align-self: center; }
+
+.issue-card[draggable="true"] { cursor: grab; }
+.issue-card[draggable="true"]:active { cursor: grabbing; }
+.issue-card[draggable="true"].dragging { opacity: .35; }
+
+/* ---- Footer ---- */
+#app-footer {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  padding: 6px 16px; text-align: right;
+  font-size: 12px; pointer-events: none;
+}
+#app-footer a {
+  pointer-events: all;
+  color: var(--muted); text-decoration: none;
+}
+#app-footer a:hover { color: var(--text); }
 
 /* ---- Generic button (login) ---- */
 button:not(.btn):not(.filter-btn):not(.icon-btn) {
