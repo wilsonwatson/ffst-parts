@@ -60,6 +60,8 @@ async function resolveSelection(occurrencePath, workspaceMicroversionId, documen
         selectedPart = part;
 
         document.getElementById('part-name').textContent = part.part_name;
+        const nameEl = document.getElementById('submission-name');
+        if (!nameEl.dataset.userEdited) nameEl.value = part.part_name;
         document.getElementById('part-link').href =
             `https://cad.onshape.com/documents/${part.document_id}` +
             `/w/${part.workspace_id}/m/${part.microversion_id}` +
@@ -79,7 +81,8 @@ async function resolveSelection(occurrencePath, workspaceMicroversionId, documen
 }
 
 function updateSubmitState() {
-    document.getElementById('submit-btn').disabled = !selectedPart;
+    const name = document.getElementById('submission-name')?.value.trim() ?? '';
+    document.getElementById('submit-btn').disabled = !selectedPart || !name;
 }
 
 // ---- OnShape postMessage -------------------------------------------------
@@ -187,7 +190,7 @@ async function submit() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({
-                part_name: selectedPart.part_name,
+                part_name: document.getElementById('submission-name').value.trim(),
                 onshape: {
                     document_id: selectedPart.document_id,
                     workspace_id: selectedPart.workspace_id,
@@ -211,6 +214,8 @@ async function submit() {
             document.getElementById('notes').value = '';
             document.getElementById('material').value = '';
             document.getElementById('material').dataset.userEdited = '';
+            document.getElementById('submission-name').value = '';
+            document.getElementById('submission-name').dataset.userEdited = '';
             document.getElementById('redesign-pred').value = '';
             updateSubmitState();
         } else if (resp.status === 403) {
@@ -252,6 +257,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('material').addEventListener('input', () => {
         document.getElementById('material').dataset.userEdited = '1';
+    });
+    document.getElementById('submission-name').addEventListener('input', () => {
+        document.getElementById('submission-name').dataset.userEdited = '1';
+        updateSubmitState();
     });
 
     document.getElementById('submit-btn').addEventListener('click', submit);

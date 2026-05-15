@@ -9,6 +9,7 @@ let allIssues        = [];
 let allUsers         = [];   // [{email, name}]
 let currentUserEmail = null;
 let isAdmin          = false;
+let canDelete        = false;
 let activeScope      = 'mine'; // 'mine' | 'all' | 'assignees'
 let activeType       = '';     // '' | '3d_print' | 'cnc' | 'manual_cut'
 let openIssueId      = null;
@@ -82,7 +83,8 @@ function nextStage(issue) {
 async function login(res) {
   token = res.token;
   currentUserEmail = res.user_info.email;
-  isAdmin = !!(res.user_info.data?.permissions?.admin);
+  isAdmin      = !!(res.user_info.data?.permissions?.admin);
+  canDelete    = !!(res.user_info.data?.permissions?.delete_parts) || isAdmin;
   document.getElementById('user-avatar').src = `${API}/avatars/${encodeURIComponent(res.user_info.email)}`;
   document.getElementById('user-name').textContent = res.user_info.data.name;
   document.getElementById('login-page').classList.add('hidden');
@@ -483,7 +485,7 @@ function renderPanel(issue) {
       ${!isTerminal
         ? `<button class="btn btn-danger" id="redesign-btn">Mark as Redesign</button>`
         : ''}
-      ${isAdmin
+      ${canDelete
         ? `<button class="btn btn-delete" id="delete-btn">Delete Part</button>`
         : ''}
     </div>
@@ -527,10 +529,10 @@ function renderPanel(issue) {
   document.getElementById('comment-submit').addEventListener('click', () => submitComment(issue.id));
 
   // Multi-select dropdowns
-  buildMultiSelect('assignees-cell', allUsers, issue.assignees, sel =>
+  buildMultiSelect('assignees-cell', allUsers.filter(u => u.assignee), issue.assignees, sel =>
     patchIssueLocal(issue.id, { assignees: sel })
   );
-  buildMultiSelect('reviewers-cell', allUsers, issue.reviewers, sel =>
+  buildMultiSelect('reviewers-cell', allUsers.filter(u => u.reviewer), issue.reviewers, sel =>
     patchIssueLocal(issue.id, { reviewers: sel })
   );
 
