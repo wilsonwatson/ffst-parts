@@ -846,6 +846,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Auto-refresh every 30 s.
   setInterval(loadIssues, 30_000);
 
-  const saved = localStorage.getItem('ffst-login');
-  if (saved) login(JSON.parse(saved));
+  (async () => {
+    const saved = localStorage.getItem('ffst-login');
+    if (!saved) return;
+    const res = JSON.parse(saved);
+    const vResp = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${res.token}` } });
+    if (!vResp.ok) { localStorage.removeItem('ffst-login'); return; }
+    res.user_info = await vResp.json();
+    localStorage.setItem('ffst-login', JSON.stringify(res));
+    login(res);
+  })();
 });

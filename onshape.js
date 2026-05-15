@@ -268,6 +268,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Restore session from localStorage
     const saved = localStorage.getItem('ffst-login');
     if (saved) {
-        await login(JSON.parse(saved));
+        const res = JSON.parse(saved);
+        const vResp = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${res.token}` } });
+        if (!vResp.ok) { localStorage.removeItem('ffst-login'); }
+        else {
+            res.user_info = await vResp.json();
+            localStorage.setItem('ffst-login', JSON.stringify(res));
+            await login(res);
+        }
     }
 });
