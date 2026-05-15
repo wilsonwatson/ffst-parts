@@ -137,6 +137,7 @@ label {
 /* Inputs */
 input[type="text"],
 input[type="number"],
+input[type="date"],
 textarea,
 select {
   width: 100%;
@@ -147,6 +148,8 @@ select {
   background: var(--surface);
   color: var(--text);
 }
+
+input[type="date"] { color-scheme: dark; }
 
 input:focus, textarea:focus, select:focus {
   outline: none;

@@ -151,6 +151,15 @@ function renderBoardView() {
     if (byStage[issue.stage] !== undefined) byStage[issue.stage].push(issue);
   }
 
+  for (const stage of stages) {
+    byStage[stage].sort((a, b) => {
+      if (!a.due_date && !b.due_date) return 0;
+      if (!a.due_date) return -1;
+      if (!b.due_date) return 1;
+      return a.due_date < b.due_date ? -1 : 1;
+    });
+  }
+
   if (stages.length === 0) {
     document.getElementById('board').innerHTML =
       `<p style="color:var(--muted);padding:32px;font-size:14px">No issues assigned to you.</p>`;
@@ -319,6 +328,12 @@ function renderCard(issue, extraAttrs = '') {
     ? `<span style="font-size:11px;color:var(--muted)">+${issue.assignees.length - 3}</span>`
     : '';
 
+  const today = new Date().toISOString().slice(0, 10);
+  const overdue = issue.due_date && issue.due_date < today;
+  const dueDateHtml = issue.due_date
+    ? `<span class="card-due${overdue ? ' card-due-overdue' : ''}">${fmtDate(issue.due_date)}</span>`
+    : `<span class="card-due card-due-missing" title="No due date set">&#9888; No date</span>`;
+
   return `
     <div class="issue-card" data-id="${issue.id}"${extraAttrs ? ' ' + extraAttrs : ''}>
       ${issue.thumbnail
@@ -328,6 +343,7 @@ function renderCard(issue, extraAttrs = '') {
         <div class="card-title">${esc(issue.part_name)}</div>
         <div class="card-meta">
           <span class="badge badge-type">${TYPE_LABEL[issue.manufacturing_type] ?? issue.manufacturing_type}</span>
+          ${dueDateHtml}
         </div>
         <div class="card-footer">
           <div class="assignee-chips">${assigneeHtml}${extraAssignees}</div>
@@ -423,6 +439,10 @@ function renderPanel(issue) {
     ? `<input id="admin-material" class="admin-input" type="text" value="${esc(issue.material)}">`
     : (esc(issue.material) || '<em>-</em>');
 
+  const dueDateCell = isAdmin
+    ? `<input id="admin-due" class="admin-input" type="date" value="${esc(issue.due_date ?? '')}">`
+    : (issue.due_date ? fmtDate(issue.due_date) : '<em style="color:var(--muted)">—</em>');
+
   const partNameHtml = isAdmin
     ? `<input id="admin-name" class="admin-title-input" type="text" value="${esc(issue.part_name)}">`
     : `<div class="panel-title">${esc(issue.part_name)}</div>`;
@@ -465,6 +485,8 @@ function renderPanel(issue) {
       <dd class="meta-value">${qtyCell}</dd>
       <dt class="meta-label">Material</dt>
       <dd class="meta-value">${materialCell}</dd>
+      <dt class="meta-label">Due Date</dt>
+      <dd class="meta-value">${dueDateCell}</dd>
     </dl>
 
     <div class="actions">
@@ -543,6 +565,9 @@ function renderPanel(issue) {
     );
     document.getElementById('admin-material')?.addEventListener('change', e =>
       adminPatch({ material: e.target.value })
+    );
+    document.getElementById('admin-due')?.addEventListener('change', e =>
+      adminPatch({ due_date: e.target.value || '' })
     );
     document.getElementById('save-notes-btn')?.addEventListener('click', () => {
       const val = document.getElementById('admin-notes')?.value ?? '';
@@ -731,6 +756,12 @@ async function api(method, path, body) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(body),
   });
+}
+
+function fmtDate(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  return `${m}/${d}/${y}`;
 }
 
 function esc(str) {

@@ -201,6 +201,7 @@ async function submit() {
                 quantity: parseInt(document.getElementById('quantity').value, 10),
                 material: document.getElementById('material').value,
                 notes: document.getElementById('notes').value,
+                due_date: document.getElementById('due-date').value || null,
                 redesign_predecessor_id: predecessor,
             }),
         });
@@ -214,6 +215,7 @@ async function submit() {
             document.getElementById('material').dataset.userEdited = '';
             document.getElementById('submission-name').value = '';
             document.getElementById('submission-name').dataset.userEdited = '';
+            document.getElementById('due-date').value = '';
             document.getElementById('redesign-pred').value = '';
             updateSubmitState();
         } else if (resp.status === 403) {
