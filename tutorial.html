@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How to Use Parts Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0f1117;
+      --surface: #1a1d23;
+      --border:  #2d3139;
+      --text:    #e8eaf0;
+      --muted:   #8b8fa8;
+      --accent:  #a40901;
+      --radius:  6px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px; line-height: 1.7; color: var(--text); background: var(--bg);
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ---- Layout ---- */
+    .page { max-width: 760px; margin: 0 auto; padding: 48px 24px 96px; }
+
+    .back {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; color: var(--muted); margin-bottom: 40px;
+    }
+    .back:hover { color: var(--text); text-decoration: none; }
+
+    /* ---- Title ---- */
+    .page-title { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    .page-subtitle { color: var(--muted); font-size: 15px; margin-bottom: 48px; }
+
+    /* ---- Phase headings ---- */
+    .phase {
+      font-size: 11px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--accent);
+      margin-bottom: 6px; margin-top: 56px;
+    }
+
+    h2 {
+      font-size: 20px; font-weight: 700;
+      padding-bottom: 10px; margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ---- Steps ---- */
+    .steps { display: flex; flex-direction: column; gap: 32px; }
+
+    .step { display: flex; gap: 18px; }
+    .step-num {
+      flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      font-size: 13px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 2px;
+    }
+    .step-body { flex: 1; min-width: 0; }
+    .step-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+    .step-desc { color: #c0c4d8; font-size: 14px; margin-bottom: 14px; }
+    .step-desc p + p { margin-top: 8px; }
+
+    /* ---- Screenshots ---- */
+    figure.screenshot { margin-top: 4px; }
+    figure.screenshot img {
+      width: 100%; height: auto; display: block;
+      border-radius: var(--radius); border: 1px solid var(--border);
+    }
+    figure.screenshot figcaption {
+      font-size: 12px; color: var(--muted);
+      text-align: center; margin-top: 6px;
+    }
+
+    /* ---- Notes ---- */
+    .note {
+      background: var(--surface); border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius); padding: 12px 16px;
+      font-size: 13px; color: #c0c4d8; margin-top: 12px;
+    }
+    .note strong { color: var(--text); }
+
+    /* ---- Inline code ---- */
+    code {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 3px; padding: 1px 5px; font-size: 13px;
+    }
+
+    /* ---- Screenshots (clickable) ---- */
+    figure.screenshot img { cursor: zoom-in; }
+
+    /* ---- Lightbox ---- */
+    #lb {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,.92);
+    }
+    #lb[hidden] { display: none; }
+    #lb-viewport {
+      width: 100%; height: 100%;
+      overflow: hidden; cursor: grab;
+      position: relative;
+    }
+    #lb-viewport.panning { cursor: grabbing; }
+    #lb-img {
+      position: absolute; top: 0; left: 0;
+      transform-origin: 0 0;
+      user-select: none; pointer-events: none;
+      max-width: none; display: block;
+    }
+    #lb-close {
+      position: fixed; top: 14px; right: 14px; z-index: 1001;
+      width: 34px; height: 34px; border-radius: 50%; border: none;
+      background: rgba(255,255,255,.15); color: #fff;
+      font-size: 18px; cursor: pointer; line-height: 1;
+    }
+    #lb-close:hover { background: rgba(255,255,255,.28); }
+    #lb-hint {
+      position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+      font-size: 12px; color: rgba(255,255,255,.35); pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="index.html">← Back to Parts Tracker</a>
+
+  <div class="page-title">How to Use Parts Tracker</div>
+  <div class="page-subtitle">
+    A walkthrough of the full lifecycle — from submitting a part in OnShape to marking it complete.
+  </div>
+
+  <!-- ===================== PHASE 1 ===================== -->
+
+  <div class="phase">Phase 1 — Submitting a Part</div>
+  <h2>From OnShape to the Board</h2>
+
+  <div class="steps">
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Open the Parts Tracker side panel in OnShape</div>
+        <div class="step-desc">
+          <p>The Parts Tracker lives inside OnShape as a side panel. Open any assembly document,
+             then click the <strong>Parts Tracker</strong> tab in the right-hand panel strip.
+             If you don't see it, install it first from the
+             <a href="https://cad.onshape.com/appstore/apps/Manufacturing/69fa1d06c40dd85548c8cc75"
+                target="_blank" rel="noopener">OnShape App Store ↗</a>.</p>
+        </div>
+        <figure class="screenshot">
+          <img src="img/onshape-panel-signin.png" alt="OnShape assembly with the Parts Tracker side panel open showing the sign-in screen">
+          <figcaption>The Parts Tracker panel before signing in.</figcaption>
+        </figure>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Sign in with your Google account</div>
+        <div class="step-desc">
+          <p>Click <strong>Sign in with Google</strong>. A small popup will open — complete sign-in
+             there and it closes automatically. The panel will show your name and avatar when ready.</p>
+        </div>
+        <figure class="screenshot">
+          <img src="img/onshape-panel-signedin.png" alt="Parts Tracker side panel after signing in, showing the submission form">
+          <figcaption>After signing in the form becomes available. Select a part to enable Submit.</figcaption>
+        </figure>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Select a part in the assembly</div>
+        <div class="step-desc">
+          <p>Click any part in the 3D viewport. The panel resolves it automatically and shows the
+             part name and a link to open it directly. Select only one part at a time — selecting
+             multiple will prompt you to narrow it down.</p>
+          <p>The <strong>Material</strong> field will pre-fill from the part's OnShape material if
+             one is set.</p>
+        </div>
+        <figure class="screenshot">
+          <img src="img/onshape-panel-part-selected.png" alt="A part highlighted in the OnShape viewport with its name shown in the side panel">
+          <figcaption>Clicking a part in the viewport resolves it instantly. The Submit button enables once a part is selected.</figcaption>
+        </figure>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Fill out the submission form</div>
+        <div class="step-desc">
+          <p>Choose the manufacturing <strong>Type</strong> (3D Print, CNC, or Manual Cut),
+             <strong>Priority</strong>, <strong>Quantity</strong>, and any <strong>Notes</strong>
+             such as tolerances or special instructions.</p>
+          <p>If this part is a replacement for one that was sent back for redesign, pick the
+             original from the <strong>Replaces (redesign)</strong> dropdown — this links the two
+             together in the tracker.</p>
+        </div>
+        <figure class="screenshot">
+          <img src="img/onshape-panel-form-filled.png" alt="The submission form filled out with type, priority, material, and notes">
+          <figcaption>A filled-out form ready to submit. Material was pre-filled from OnShape.</figcaption>
+        </figure>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Click "Submit Part"</div>
+        <div class="step-desc">
+          <p>The part is added to the board instantly. The form resets so you can immediately
+             select the next part and submit again.</p>
+        </div>
+        <div class="note">
+          <strong>Tip:</strong> You can submit multiple parts in a row without reloading —
+          just click the next part in the viewport after each submission.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== PHASE 2 ===================== -->
+
+  <div class="phase">Phase 2 — Tracking the Part</div>
+  <h2>Following a Part Through the Board</h2>
+
+  <div class="steps">
+
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <div class="step-title">Find the part on the board</div>
+        <div class="step-desc">
+          <p>Open <a href="index.html">Parts Tracker</a>. The newly submitted part appears in the
+             first column for its type — <strong>Ready for Slicing</strong> (3D Print),
+             <strong>Ready for CAM</strong> (CNC), or <strong>Ready for Cutting</strong>
+             (Manual Cut).</p>
+          <p>Use <strong>All</strong> to see every part, or <strong>My Issues</strong> to see
+             only parts assigned to you. The type buttons narrow which columns are shown.</p>
+        </div>
+        <figure class="screenshot">
+          <img src="img/board-ready-for-cutting.png" alt="The Parts Tracker board in All view showing a card in the Ready for Cutting column">
+          <figcaption>The submitted tube part appears immediately in "Ready for Cutting".</figcaption>
+        </figure>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <div class="step-title">Open the part detail and advance its stage</div>
+        <div class="step-desc">
+          <p>Click any card to open the detail panel. It shows the full part info: stage, type,
+             priority, assignees, reviewers, material, description, files, and activity history.</p>
+          <p>When you've completed your step, click <strong>Advance to [next stage] →</strong>.
+             The card moves to the next column and the change is recorded in the activity log.
+             Each type follows its own sequence:</p>
+          <ul style="margin: 8px 0 0 20px; font-size: 14px; color: #c0c4d8;">
+            <li><strong>3D Print:</strong> Ready for Slicing → Ready for Printing → Printing → Complete</li>
+            <li><strong>CNC:</strong> Ready for CAM → Ready for Machining → Machining → Complete</li>
+            <li><strong>Manual Cut:</strong> Ready for Cutting → Cutting → Complete</li>
+          </ul>
+        </div>
+        <figure class="screenshot">
+          <img src="img/board-detail-panel.png" alt="The detail panel showing part metadata and the Advance to Cutting button">
+          <figcaption>The detail panel. Click "Advance to Cutting →" to move the part to the next stage.</figcaption>
+        </figure>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">8</div>
+      <div class="step-body">
+        <div class="step-title">Upload files and leave comments</div>
+        <div class="step-desc">
+          <p>Attach relevant files at each stage — slice files (<code>.gcode</code>), CAM programs
+             (<code>.nc</code>), or drawings (<code>.step</code>, <code>.pdf</code>). Scroll to
+             <strong>Files</strong>, choose your files, and click <strong>Upload File(s)</strong>.
+             Files are stored permanently and downloadable by anyone with access.</p>
+          <p>Use the comment box in the <strong>Activity</strong> section to communicate with
+             the team. Comments support Markdown and appear in the timeline alongside stage and
+             assignee changes.</p>
+        </div>
+        <figure class="screenshot">
+          <img src="img/board-detail-file-activity.png" alt="The detail panel showing a file uploaded and activity entries for stage and assignee changes">
+          <figcaption>After advancing and assigning: a file is attached and the activity log shows the full history.</figcaption>
+        </figure>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== PHASE 3 ===================== -->
+
+  <div class="phase">Phase 3 — Closing the Loop</div>
+  <h2>Complete or Send Back for Redesign</h2>
+
+  <div class="steps">
+
+    <div class="step">
+      <div class="step-num">9</div>
+      <div class="step-body">
+        <div class="step-title">Mark the part as complete</div>
+        <div class="step-desc">
+          <p>Advance through all stages until you reach <strong>Complete</strong>. The card
+             disappears from most views (switch to <strong>All</strong> and look for a Complete
+             column if you need to find it later).</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">10</div>
+      <div class="step-body">
+        <div class="step-title">Or — send it back as a redesign</div>
+        <div class="step-desc">
+          <p>If the part doesn't pass inspection or needs a design change, click
+             <strong>Mark as Redesign</strong>. This is permanent — confirm carefully.</p>
+          <p>Once marked, the part becomes available in the <strong>Replaces (redesign)</strong>
+             dropdown of the OnShape side panel. The designer submits a corrected version linked
+             back to the original, creating a visible chain between the two parts.</p>
+        </div>
+
+        <figure class="screenshot" style="margin-top: 14px;">
+          <img src="img/onshape-panel-redesign-dropdown.png" alt="The OnShape side panel showing the Replaces dropdown with a part selected">
+          <figcaption>The "Replaces (redesign)" dropdown appears in the side panel when redesign parts exist, linking the new submission to the original.</figcaption>
+        </figure>
+        <div class="note" style="margin-top: 12px;">
+          <strong>Note:</strong> Only submit a redesign part after the designer has updated
+          the OnShape document — the submission captures the exact geometry at the time of submit.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== BONUS ===================== -->
+
+  <div class="phase">Bonus — Assign Work</div>
+  <h2>The By Assignee View</h2>
+
+  <div class="steps">
+
+    <div class="step">
+      <div class="step-num">11</div>
+      <div class="step-body">
+        <div class="step-title">See who has what — and reassign by dragging</div>
+        <div class="step-desc">
+          <p>Click <strong>By Assignee</strong> in the top filter bar. Every team member gets a
+             row showing their open parts. Click a row header to collapse or expand it. Members
+             with no parts are collapsed by default but still visible — drag any card onto their
+             row to assign work to them.</p>
+          <p>Dropping a card on <strong>Open</strong> removes the current assignee. If a part has
+             multiple assignees, only the person whose row the card came from is swapped.</p>
+        </div>
+        <figure class="screenshot">
+          <img src="img/board-by-assignee.png" alt="The By Assignee view showing Open, Resnick, Test User, and Wilson rows">
+          <figcaption>By Assignee view. Test User has one part; Resnick and Wilson are collapsed with none.</figcaption>
+        </figure>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Lightbox -->
+<div id="lb" hidden>
+  <div id="lb-viewport"><img id="lb-img" alt=""></div>
+  <button id="lb-close" title="Close (Esc)">✕</button>
+  <div id="lb-hint">Scroll to zoom · Drag to pan · Esc to close</div>
+</div>
+
+<script>
+  const lb         = document.getElementById('lb');
+  const lbViewport = document.getElementById('lb-viewport');
+  const lbImg      = document.getElementById('lb-img');
+
+  let scale = 1, tx = 0, ty = 0;
+  let dragging = false, didDrag = false;
+  let dragStartX, dragStartY, dragStartTx, dragStartTy;
+
+  function applyTransform() {
+    lbImg.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+  }
+
+  function openLightbox(src) {
+    lbImg.src = src;
+    lb.hidden = false;
+    lbImg.decode().then(() => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      scale = Math.min(vw / lbImg.naturalWidth, vh / lbImg.naturalHeight, 1);
+      tx = (vw - lbImg.naturalWidth  * scale) / 2;
+      ty = (vh - lbImg.naturalHeight * scale) / 2;
+      applyTransform();
+    });
+  }
+
+  function closeLightbox() {
+    lb.hidden = true;
+    lbImg.src = '';
+  }
+
+  // Wire thumbnail clicks
+  document.querySelectorAll('figure.screenshot img').forEach(img => {
+    img.addEventListener('click', () => openLightbox(img.src));
+  });
+
+  document.getElementById('lb-close').addEventListener('click', closeLightbox);
+
+  // Only close on backdrop click if the user didn't just finish a drag
+  lb.addEventListener('click', e => {
+    if (didDrag) { didDrag = false; return; }
+    if (e.target === lb || e.target === lbViewport) closeLightbox();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !lb.hidden) closeLightbox();
+  });
+
+  // Zoom toward cursor
+  lbViewport.addEventListener('wheel', e => {
+    e.preventDefault();
+    const mx = e.clientX;
+    const my = e.clientY;
+    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    const newScale = Math.max(0.1, Math.min(10, scale * factor));
+    tx = mx - (mx - tx) * (newScale / scale);
+    ty = my - (my - ty) * (newScale / scale);
+    scale = newScale;
+    applyTransform();
+  }, { passive: false });
+
+  // Pan
+  lbViewport.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    dragging = true;
+    didDrag = false;
+    dragStartX = e.clientX; dragStartY = e.clientY;
+    dragStartTx = tx;       dragStartTy = ty;
+    lbViewport.classList.add('panning');
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag = true;
+    tx = dragStartTx + dx;
+    ty = dragStartTy + dy;
+    applyTransform();
+  });
+
+  window.addEventListener('mouseup', () => {
+    dragging = false;
+    lbViewport.classList.remove('panning');
+  });
+</script>
+</body>
+</html>

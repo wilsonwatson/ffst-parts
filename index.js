@@ -812,6 +812,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('refresh-btn').addEventListener('click', loadIssues);
 
+  const userDropdown = document.getElementById('user-dropdown');
+  document.getElementById('user-menu-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    userDropdown.classList.toggle('hidden');
+  });
+  document.addEventListener('click', () => userDropdown.classList.add('hidden'));
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    localStorage.removeItem('ffst-login');
+    location.reload();
+  });
+
   document.querySelectorAll('.scope-filter .filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.scope-filter .filter-btn').forEach(b => b.classList.remove('active'));

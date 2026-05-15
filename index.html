@@ -33,8 +33,15 @@
       </nav>
       <div class="topbar-right">
         <button id="refresh-btn" class="icon-btn" title="Refresh">↺</button>
-        <img id="user-avatar" class="avatar" src="" alt="">
-        <span id="user-name"></span>
+        <div id="user-menu-wrap">
+          <button id="user-menu-btn" class="user-menu-btn">
+            <img id="user-avatar" class="avatar" src="" alt="">
+            <span id="user-name"></span>
+          </button>
+          <div id="user-dropdown" class="user-dropdown hidden">
+            <button id="logout-btn">Sign out</button>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -54,6 +61,8 @@
   </aside>
 
   <footer id="app-footer">
+    <a href="tutorial.html">How to Use ↗</a>
+    <span style="margin:0 8px;opacity:.3">|</span>
     <a href="https://cad.onshape.com/appstore/apps/Manufacturing/69fa1d06c40dd85548c8cc75" target="_blank" rel="noopener">
       OnShape Side Panel ↗
     </a>
