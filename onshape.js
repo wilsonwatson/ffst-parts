@@ -11,7 +11,6 @@ let selectedPart = null;
 
 const form = {
     manufacturing_type: '3d_print',
-    priority: 'medium',
     quantity: 1,
     material: '',
     notes: '',
@@ -199,7 +198,6 @@ async function submit() {
                     part_id: selectedPart.part_id,
                 },
                 manufacturing_type: form.manufacturing_type,
-                priority: form.priority,
                 quantity: parseInt(document.getElementById('quantity').value, 10),
                 material: document.getElementById('material').value,
                 notes: document.getElementById('notes').value,
@@ -253,7 +251,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     setupSelector('mfg-type', 'manufacturing_type');
-    setupSelector('priority', 'priority');
 
     document.getElementById('material').addEventListener('input', () => {
         document.getElementById('material').dataset.userEdited = '1';

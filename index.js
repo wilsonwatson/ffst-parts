@@ -328,7 +328,6 @@ function renderCard(issue, extraAttrs = '') {
         <div class="card-title">${esc(issue.part_name)}</div>
         <div class="card-meta">
           <span class="badge badge-type">${TYPE_LABEL[issue.manufacturing_type] ?? issue.manufacturing_type}</span>
-          <span class="badge badge-${issue.priority}">${issue.priority}</span>
         </div>
         <div class="card-footer">
           <div class="assignee-chips">${assigneeHtml}${extraAssignees}</div>
@@ -416,14 +415,6 @@ function renderPanel(issue) {
        </select>`
     : (TYPE_LABEL[issue.manufacturing_type] ?? issue.manufacturing_type);
 
-  const priorityCell = isAdmin
-    ? `<select id="admin-priority" class="admin-select">
-        ${['critical','high','medium','low'].map(p =>
-          `<option value="${p}"${issue.priority === p ? ' selected' : ''}>${p.charAt(0).toUpperCase()+p.slice(1)}</option>`
-        ).join('')}
-       </select>`
-    : `<span class="badge badge-${issue.priority}">${issue.priority}</span>`;
-
   const qtyCell = isAdmin
     ? `<input id="admin-qty" class="admin-input" type="number" min="1" value="${issue.quantity}" style="width:72px">`
     : issue.quantity;
@@ -464,8 +455,6 @@ function renderPanel(issue) {
       <dd class="meta-value">${stageCell}</dd>
       <dt class="meta-label">Type</dt>
       <dd class="meta-value">${typeCell}</dd>
-      <dt class="meta-label">Priority</dt>
-      <dd class="meta-value">${priorityCell}</dd>
       <dt class="meta-label">Assignees</dt>
       <dd class="meta-value" id="assignees-cell"></dd>
       <dt class="meta-label">Reviewers</dt>
@@ -548,9 +537,6 @@ function renderPanel(issue) {
     );
     document.getElementById('admin-type')?.addEventListener('change', e =>
       adminPatch({ manufacturing_type: e.target.value })
-    );
-    document.getElementById('admin-priority')?.addEventListener('change', e =>
-      adminPatch({ priority: e.target.value })
     );
     document.getElementById('admin-qty')?.addEventListener('change', e =>
       adminPatch({ quantity: parseInt(e.target.value, 10) })
