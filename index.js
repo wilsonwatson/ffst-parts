@@ -1,9 +1,16 @@
 const params = new URL(window.location.href).searchParams;
-const API    = params.get('api') || 'https://api.frc5572.org';
+const API            = params.get('api')            || 'https://api.frc5572.org';
+const AUTH0_DOMAIN   = params.get('auth0_domain')   || 'legoguy1000.auth0.com';
+const AUTH0_CLIENT   = params.get('auth0_client_id')|| '3DIkQirwReuUotmcBcozUMlRHBKd60TX';
+const AUTH0_AUDIENCE = params.get('auth0_audience') || 'https://parts.frc5572.org';
 
-let token = null;
-let jwt   = null;
-let popupWindow = null;
+let auth0Client = null;
+
+async function getToken() {
+  return auth0Client.getTokenSilently({
+    authorizationParams: { audience: AUTH0_AUDIENCE },
+  });
+}
 
 let allIssues        = [];
 let allUsers         = [];   // [{email, name}]
@@ -81,7 +88,6 @@ function nextStage(issue) {
 // ---- Auth ----------------------------------------------------------------
 
 async function login(res) {
-  token = res.token;
   currentUserEmail = res.user_info.email;
   isAdmin      = !!(res.user_info.data?.permissions?.admin);
   canDelete    = !!(res.user_info.data?.permissions?.delete_parts) || isAdmin;
@@ -94,7 +100,7 @@ async function login(res) {
 
 async function loadUsers() {
   try {
-    const resp = await fetch(`${API}/users`, { headers: { Authorization: `Bearer ${token}` } });
+    const resp = await api('GET', '/users');
     if (resp.ok) allUsers = await resp.json();
   } catch {}
 }
@@ -118,9 +124,7 @@ function userAvatar(email, size = 22) {
 // ---- Data ----------------------------------------------------------------
 
 async function loadIssues() {
-  const resp = await fetch(`${API}/parts`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const resp = await api('GET', '/parts');
   if (!resp.ok) return;
   allIssues = await resp.json();
   renderBoard();
@@ -726,9 +730,10 @@ async function uploadFiles(id) {
   btn.disabled = true;
   const form = new FormData();
   for (const file of input.files) form.append('file', file, file.name);
+  const t = await getToken();
   await fetch(`${API}/parts/${id}/files`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${t}` },
     body: form,
   });
   input.value = '';
@@ -751,10 +756,13 @@ async function submitComment(id) {
 // ---- Helpers -------------------------------------------------------------
 
 async function api(method, path, body) {
+  const t = await getToken();
+  const headers = { Authorization: `Bearer ${t}` };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
   return fetch(`${API}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 }
 
@@ -783,47 +791,63 @@ function timeAgo(iso) {
   return rtf.format(-Math.round(diff / 86_400_000), 'day');
 }
 
-// ---- Init ----------------------------------------------------------------
+// ---- Post-login: resolve user info from API, handle enrollment ----
 
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('login-btn').addEventListener('click', async () => {
-    const resp = await fetch(`${API}/login`);
-    const res  = await resp.json();
-    jwt = res.jwt;
-    popupWindow = window.open(res.auth_url, 'Login', 'width=500,height=600,resizable');
-  });
+async function completeLogin() {
+  const t = await getToken();
+  let meResp = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${t}` } });
 
-  window.addEventListener('message', async e => {
-    if (e.origin !== API) return;
-    const data = JSON.parse(e.data);
-    popupWindow?.close();
-    const resp = await fetch(`${API}/login_complete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ state: data.state, code: data.code, jwt }),
-    });
-    if (resp.status === 403) {
-      const body = await resp.json().catch(() => ({}));
-      if (body.not_in_roster) {
-        const params = new URLSearchParams();
-        if (body.email) params.set('email', body.email);
-        if (body.name)  params.set('name',  body.name);
-        window.location.href = `${API}/request_access?${params}`;
-        return;
-      }
-    }
-    const res = await resp.json();
-    if (res.needs_enrollment) {
-      const params = new URLSearchParams();
-      params.set('pending_jwt', res.pending_jwt);
-      if (res.email)       params.set('email',       res.email);
-      if (res.google_name) params.set('google_name', res.google_name);
-      params.set('return', window.location.href);
-      window.location.href = `${API}/enroll?${params}`;
+  if (meResp.status === 403) {
+    // Not in roster — check if enrollment is open.
+    const enrollCheck = await fetch(`${API}/enroll`);
+    if (!enrollCheck.ok) {
+      alert('Access denied. Contact an admin to be added to the roster.');
       return;
     }
-    localStorage.setItem('ffst-login', JSON.stringify(res));
-    await login(res);
+    // Enrollment open — auto-enroll using identity from the Auth0 token.
+    const enrollResp = await fetch(`${API}/enroll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+      body: JSON.stringify({}),
+    });
+    if (!enrollResp.ok) {
+      alert('Enrollment failed. Contact an admin.');
+      return;
+    }
+    meResp = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${t}` } });
+  }
+
+  if (!meResp.ok) {
+    alert('Login failed. Please try again.');
+    return;
+  }
+
+  const userInfo = await meResp.json();
+  await login({ user_info: userInfo });
+}
+
+// ---- Init ----------------------------------------------------------------
+
+document.addEventListener('DOMContentLoaded', async () => {
+  auth0Client = await auth0.createAuth0Client({
+    domain: AUTH0_DOMAIN,
+    clientId: AUTH0_CLIENT,
+    authorizationParams: {
+      audience: AUTH0_AUDIENCE,
+      scope: 'openid email profile',
+    },
+    useRefreshTokens: true,
+    cacheLocation: 'localstorage',
+  });
+
+  document.getElementById('login-btn').addEventListener('click', async () => {
+    try {
+      await auth0Client.loginWithPopup();
+    } catch (e) {
+      console.error('Login failed:', e);
+      return;
+    }
+    await completeLogin();
   });
 
   document.getElementById('panel-close').addEventListener('click', closePanel);
@@ -837,9 +861,8 @@ document.addEventListener('DOMContentLoaded', () => {
     userDropdown.classList.toggle('hidden');
   });
   document.addEventListener('click', () => userDropdown.classList.add('hidden'));
-  document.getElementById('logout-btn').addEventListener('click', () => {
-    localStorage.removeItem('ffst-login');
-    location.reload();
+  document.getElementById('logout-btn').addEventListener('click', async () => {
+    await auth0Client.logout({ logoutParams: { returnTo: window.location.origin } });
   });
 
   document.querySelectorAll('.scope-filter .filter-btn').forEach(btn => {
@@ -863,14 +886,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Auto-refresh every 30 s.
   setInterval(loadIssues, 30_000);
 
-  (async () => {
-    const saved = localStorage.getItem('ffst-login');
-    if (!saved) return;
-    const res = JSON.parse(saved);
-    const vResp = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${res.token}` } });
-    if (!vResp.ok) { localStorage.removeItem('ffst-login'); return; }
-    res.user_info = await vResp.json();
-    localStorage.setItem('ffst-login', JSON.stringify(res));
-    login(res);
-  })();
+  // Restore session via Auth0's cached token (no redirect needed).
+  try {
+    await auth0Client.getTokenSilently({
+      authorizationParams: { audience: AUTH0_AUDIENCE },
+    });
+    await completeLogin();
+  } catch {
+    // No cached session — show login page.
+  }
 });
