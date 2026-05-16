@@ -179,6 +179,14 @@ textarea { resize: vertical; }
 
 #submit-btn:not(:disabled):hover { opacity: 0.88; }
 
+/* No-permission notice */
+.no-permission-msg {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 16px;
+}
+
 /* Error */
 .error {
   color: var(--critical);

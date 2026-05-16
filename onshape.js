@@ -31,7 +31,11 @@ async function login(res) {
     document.getElementById('user-name').textContent = res.user_info.data.name;
     document.getElementById('login-page').classList.add('hidden');
     document.getElementById('main').classList.remove('hidden');
-    loadRedesignIssues();
+
+    const canSubmit = !!res.user_info.data.permissions?.onshape_submit;
+    document.getElementById('no-permission').classList.toggle('hidden', canSubmit);
+    document.getElementById('form-area').classList.toggle('hidden', !canSubmit);
+    if (canSubmit) loadRedesignIssues();
 }
 
 // ---- Part resolution -----------------------------------------------------
