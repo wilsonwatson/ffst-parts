@@ -1,10 +1,17 @@
 const params = new URL(window.location.href).searchParams;
-const API    = params.get('api') || 'https://api.frc5572.org';
-const SERVER = params.get('server'); // OnShape origin, e.g. https://cad.onshape.com
+const API            = params.get('api')            || 'https://api.frc5572.org';
+const SERVER         = params.get('server');         // OnShape origin, e.g. https://cad.onshape.com
+const AUTH0_DOMAIN   = params.get('auth0_domain')   || 'TODO_YOUR_AUTH0_DOMAIN';
+const AUTH0_CLIENT   = params.get('auth0_client_id')|| 'TODO_YOUR_AUTH0_CLIENT_ID';
+const AUTH0_AUDIENCE = params.get('auth0_audience') || 'https://api.frc5572.org';
 
-let token = null;
-let jwt   = null;
-let popupWindow = null;
+let auth0Client = null;
+
+async function getToken() {
+    return auth0Client.getTokenSilently({
+        authorizationParams: { audience: AUTH0_AUDIENCE },
+    });
+}
 
 // Resolved OnShape ref for the currently selected part, or null.
 let selectedPart = null;
@@ -20,7 +27,6 @@ const form = {
 // ---- Auth ----------------------------------------------------------------
 
 async function login(res) {
-    token = res.token;
     document.getElementById('user-avatar').src = res.user_info.data.picture;
     document.getElementById('user-name').textContent = res.user_info.data.name;
     document.getElementById('login-page').classList.add('hidden');
@@ -41,9 +47,10 @@ async function resolveSelection(occurrencePath, workspaceMicroversionId, documen
     selectedPart = null;
 
     try {
+        const t = await getToken();
         const resp = await fetch(`${API}/onshape/resolve`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
             body: JSON.stringify({
                 occurrence_path: occurrencePath,
                 workspace_microversion_id: workspaceMicroversionId,
@@ -96,22 +103,6 @@ function getOnshapeIds() {
 }
 
 window.addEventListener('message', async (e) => {
-    // OAuth popup callback
-    if (e.origin === API) {
-        const data = JSON.parse(e.data);
-        popupWindow?.close();
-
-        const resp = await fetch(`${API}/login_complete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ state: data.state, code: data.code, jwt }),
-        });
-        const res = await resp.json();
-        localStorage.setItem('ffst-login', JSON.stringify(res));
-        await login(res);
-        return;
-    }
-
     // OnShape selection events
     if (SERVER && e.origin === SERVER && e.data?.messageName === 'SELECTION') {
         const selections = e.data.selections ?? [];
@@ -152,8 +143,9 @@ function setupSelector(listId, key) {
 
 async function loadRedesignIssues() {
     try {
+        const t = await getToken();
         const resp = await fetch(`${API}/parts?stage=redesign`, {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${t}` },
         });
         if (!resp.ok) return;
 
@@ -185,9 +177,10 @@ async function submit() {
     const predecessor = document.getElementById('redesign-pred').value || null;
 
     try {
+        const t = await getToken();
         const resp = await fetch(`${API}/parts`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
             body: JSON.stringify({
                 part_name: document.getElementById('submission-name').value.trim(),
                 onshape: {
@@ -236,7 +229,50 @@ async function submit() {
 
 // ---- Init ----------------------------------------------------------------
 
+async function completeLogin() {
+    const t = await getToken();
+    let meResp = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${t}` } });
+
+    if (meResp.status === 403) {
+        // Not in roster — check if enrollment is open.
+        const enrollCheck = await fetch(`${API}/enroll`);
+        if (!enrollCheck.ok) {
+            alert('Access denied. Contact an admin to be added to the roster.');
+            return;
+        }
+        const enrollResp = await fetch(`${API}/enroll`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+            body: JSON.stringify({}),
+        });
+        if (!enrollResp.ok) {
+            alert('Enrollment failed. Contact an admin.');
+            return;
+        }
+        meResp = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${t}` } });
+    }
+
+    if (!meResp.ok) {
+        alert('Login failed. Please try again.');
+        return;
+    }
+
+    const userInfo = await meResp.json();
+    await login({ user_info: userInfo });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+    auth0Client = await createAuth0Client({
+        domain: AUTH0_DOMAIN,
+        clientId: AUTH0_CLIENT,
+        authorizationParams: {
+            audience: AUTH0_AUDIENCE,
+            scope: 'openid email profile',
+        },
+        useRefreshTokens: true,
+        cacheLocation: 'localstorage',
+    });
+
     const { documentId, workspaceId, elementId } = getOnshapeIds();
 
     // Tell OnShape the extension is ready
@@ -246,10 +282,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
 
     document.getElementById('login-btn').addEventListener('click', async () => {
-        const resp = await fetch(`${API}/login`);
-        const res = await resp.json();
-        jwt = res.jwt;
-        popupWindow = window.open(res.auth_url, 'Login', 'width=500,height=600,resizable');
+        try {
+            await auth0Client.loginWithPopup();
+        } catch (e) {
+            console.error('Login failed:', e);
+            return;
+        }
+        await completeLogin();
     });
 
     setupSelector('mfg-type', 'manufacturing_type');
@@ -264,16 +303,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('submit-btn').addEventListener('click', submit);
 
-    // Restore session from localStorage
-    const saved = localStorage.getItem('ffst-login');
-    if (saved) {
-        const res = JSON.parse(saved);
-        const vResp = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${res.token}` } });
-        if (!vResp.ok) { localStorage.removeItem('ffst-login'); }
-        else {
-            res.user_info = await vResp.json();
-            localStorage.setItem('ffst-login', JSON.stringify(res));
-            await login(res);
-        }
+    // Restore session via Auth0's cached token.
+    try {
+        await auth0Client.getTokenSilently({
+            authorizationParams: { audience: AUTH0_AUDIENCE },
+        });
+        await completeLogin();
+    } catch {
+        // No cached session — show login page.
     }
 });
