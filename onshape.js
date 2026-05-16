@@ -1,9 +1,9 @@
 const params = new URL(window.location.href).searchParams;
 const API            = params.get('api')            || 'https://api.frc5572.org';
 const SERVER         = params.get('server');         // OnShape origin, e.g. https://cad.onshape.com
-const AUTH0_DOMAIN   = params.get('auth0_domain')   || 'TODO_YOUR_AUTH0_DOMAIN';
-const AUTH0_CLIENT   = params.get('auth0_client_id')|| 'TODO_YOUR_AUTH0_CLIENT_ID';
-const AUTH0_AUDIENCE = params.get('auth0_audience') || 'https://api.frc5572.org';
+const AUTH0_DOMAIN   = params.get('auth0_domain')   || 'legoguy1000.auth0.com';
+const AUTH0_CLIENT   = params.get('auth0_client_id')|| '3DIkQirwReuUotmcBcozUMlRHBKd60TX';
+const AUTH0_AUDIENCE = params.get('auth0_audience') || 'https://parts.frc5572.org';
 
 let auth0Client = null;
 
