@@ -262,7 +262,7 @@ async function completeLogin() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    auth0Client = await createAuth0Client({
+    auth0Client = await auth0.createAuth0Client({
         domain: AUTH0_DOMAIN,
         clientId: AUTH0_CLIENT,
         authorizationParams: {
