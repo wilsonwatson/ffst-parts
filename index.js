@@ -207,6 +207,7 @@ function renderAssigneeView() {
   }
 
   const sortedEmails = allUsers
+    .filter(u => u.assignee)
     .map(u => u.email)
     .sort((a, b) => userName(a).localeCompare(userName(b)));
 
