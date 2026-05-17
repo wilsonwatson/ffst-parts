@@ -234,35 +234,10 @@ async function submit() {
 // ---- Init ----------------------------------------------------------------
 
 async function completeLogin() {
-    const t = await getToken();
-    let meResp = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${t}` } });
-
-    if (meResp.status === 403) {
-        // Not in roster — check if enrollment is open.
-        const enrollCheck = await fetch(`${API}/enroll`);
-        if (!enrollCheck.ok) {
-            alert('Access denied. Contact an admin to be added to the roster.');
-            return;
-        }
-        const enrollResp = await fetch(`${API}/enroll`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
-            body: JSON.stringify({}),
-        });
-        if (!enrollResp.ok) {
-            alert('Enrollment failed. Contact an admin.');
-            return;
-        }
-        meResp = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${t}` } });
-    }
-
-    if (!meResp.ok) {
-        alert('Login failed. Please try again.');
-        return;
-    }
-
-    const userInfo = await meResp.json();
-    await login({ user_info: userInfo });
+    const t      = await getToken();
+    const meResp = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${t}` } });
+    if (!meResp.ok) { alert('Login failed. Please try again.'); return; }
+    await login({ user_info: await meResp.json() });
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
